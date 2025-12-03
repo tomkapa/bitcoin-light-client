@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.sui.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)",
+      "Bash(sui move build:*)",
+      "Bash(sui move test)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
