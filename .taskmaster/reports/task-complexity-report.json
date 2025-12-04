@@ -1,0 +1,109 @@
+{
+	"meta": {
+		"generatedAt": "2025-12-04T08:01:30.842Z",
+		"tasksAnalyzed": 12,
+		"totalTasks": 12,
+		"analysisCount": 12,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Create zcash_lib header.move with Zcash Block Header Structure",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down the Zcash block header implementation into: 1) Define the BlockHeader struct with all Zcash-specific fields (version, parent, merkle_root, hash_reserved, timestamp, bits, nonce, solution, block_hash), 2) Implement the new() constructor that parses raw bytes (140-byte header without solution) using the existing reader pattern from bitcoin_lib, 3) Implement block hash computation using SHA256d of the 140-byte header portion, 4) Add all getter functions and solution size constants for testnet (100 bytes) and mainnet (1344 bytes).",
+			"reasoning": "The existing bitcoin_lib/sources/header.move (69 lines) provides a clear template. Zcash header is structurally similar but with different field sizes (140 vs 80 bytes, 32-byte nonce vs 4-byte, plus hash_reserved and solution fields). The reader.move utility exists and can be reused. Moderate complexity due to understanding Zcash header format and ensuring correct byte ordering for hash computation. No algorithmic complexity beyond what exists in Bitcoin implementation."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Create zcash_spv Package with Network Parameters",
+			"complexityScore": 3,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down into: 1) Create zcash_spv/Move.toml with correct dependencies on zcash_lib and Sui framework, 2) Implement params.move with the Params struct including DigiShield-specific fields (target_spacing=75s, averaging_window=17, median_time_span=11, equihash_n/k), 3) Implement testnet() and mainnet() factory functions with correct network-specific values for power_limit, Equihash parameters (144,5 vs 200,9), and difficulty adjustment type.",
+			"reasoning": "The existing bitcoin_spv/sources/params.move (82 lines) is a simple direct template. The main work is updating constant values for Zcash (75-second blocks, 17-block averaging window, Equihash parameters). This is straightforward parameter substitution with minimal logic. The Move.toml setup is trivial."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Implement DigiShield Difficulty Adjustment Algorithm",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down into: 1) Study Zcash's DigiShield v3 algorithm from zcash/src/pow.cpp and document the mathematical formula, 2) Implement the core calc_next_difficulty function with averaging window calculation, damping factor (4x), and timespan clamping (75%-125%), 3) Implement helper functions for calculating average target over the 17-block window, 4) Implement median time calculation functions for DigiShield (similar to Bitcoin's 11-block median but used differently), 5) Add comprehensive unit tests using known Zcash testnet difficulty transitions to verify correctness.",
+			"reasoning": "This is the most algorithmic task. The Bitcoin retarget algorithm (lines 414-447, 497-530 in light_client.move) is fundamentally different from DigiShield. DigiShield adjusts every block (not every 2016 blocks), uses a 17-block averaging window, damping factor of 4, and different timespan clamping (75%-125% vs Bitcoin's 25%-400%). Requires careful implementation and testing against real chain data. The mathematical complexity and potential for subtle bugs makes this moderately complex."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Create zcash_spv Light Block and SPV Header Modules",
+			"complexityScore": 4,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break down into: 1) Create light_block.move by adapting bitcoin_spv/sources/light_block.move (36 lines) to use Zcash BlockHeader type instead of Bitcoin's, 2) Create block_header.move that implements pow_check() using Equihash verification (calling zcash_lib::equihash::verify) instead of simple SHA256d target check, 3) Ensure the calc_work and target functions work correctly with Zcash's difficulty encoding (same format as Bitcoin).",
+			"reasoning": "The existing bitcoin_spv/sources/light_block.move is only 36 lines and very simple. The bitcoin_spv/sources/header.move (block_header.move) is 39 lines. Main changes are import updates and modifying pow_check to call Equihash verification. The Equihash module already exists in zcash_lib (456 lines). This is primarily adapting existing code rather than writing new algorithms."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Implement Zcash Light Client Core",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: 1) Copy and adapt the LightClient struct and core data structures from bitcoin_spv/sources/light_client.move (538 lines), updating imports to use zcash_lib and zcash_spv modules, 2) Replace calc_next_required_difficulty with DigiShield implementation that computes average target over 17-block window and uses the new difficulty algorithm, 3) Update insert_header to use Zcash pow_check (Equihash verification), 4) Adapt calc_past_median_time for DigiShield (used for timespan calculation, not just header validation), 5) Implement relative_ancestor and helper functions for navigating the 17-block averaging window, 6) Update all initialization functions (new_light_client, initialize_light_client) to work with Zcash parameters.",
+			"reasoning": "The bitcoin_spv/sources/light_client.move is 538 lines and is the core of the SPV implementation. While much of the structure can be reused (chain management, fork handling, transaction verification), the difficulty calculation is completely different (DigiShield vs Bitcoin's 2016-block retarget). This requires careful adaptation of multiple interconnected functions. The integration of Equihash verification with the existing chain validation flow adds complexity. High complexity due to size and the need to ensure all components work correctly together."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Implement Zcash Transaction Structure (v4 Transparent)",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down into: 1) Study Zcash v4 transaction format (ZIP 243) and document differences from Bitcoin (version_group_id, expiry_height, no SegWit markers), 2) Create zcash_lib/sources/tx.move with Transaction struct including Zcash-specific fields (version with overwinter flag, version_group_id, expiry_height), 3) Implement transaction deserialization/parsing adapting from bitcoin_lib/sources/tx.move (253 lines), removing SegWit handling and adding Zcash fields, 4) Implement tx_id computation using BLAKE2b-256 with 'ZcashTxHash' personalization instead of SHA256d.",
+			"reasoning": "The existing bitcoin_lib/sources/tx.move (253 lines) provides a template, but Zcash v4 transparent transactions have significant differences: version with overwinter flag, version_group_id (4 bytes), expiry_height (4 bytes), and critically different tx_id computation (BLAKE2b-256 with personalization vs SHA256d). The BLAKE2b module already exists (529 lines). Moderate-high complexity due to different serialization format and hash computation."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Add Merkle Tree and Utility Modules to zcash_spv",
+			"complexityScore": 2,
+			"recommendedSubtasks": 0,
+			"expansionPrompt": "This is a straightforward copy-and-adapt task. Copy merkle_tree.move (no changes needed - Zcash uses same SHA256d merkle trees for transparent txs), utils.move (no changes), and btc_math.move (rename to zcash_math.move, update module references). Update zcash_spv/Move.toml to include these modules.",
+			"reasoning": "The source files are small and require minimal changes: merkle_tree.move can be copied directly, utils.move is utility functions that don't change, btc_math.move is basic mathematical operations (bits_to_target, target_to_bits) that use the same algorithm in Zcash. This is essentially copy-paste with module name updates. No subtask expansion needed as this can be done in a single focused session."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Create nZEC Package Structure",
+			"complexityScore": 6,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down into: 1) Create nZEC/Move.toml with dependencies on zcash_spv, zcash_lib, and ika packages (use nBTC/Move.toml as template), 2) Copy and adapt nzec.move from nbtc.move (858 lines), updating all imports from bitcoin_lib/bitcoin_spv to zcash_lib/zcash_spv and renaming types (NBTC→NZEC, NbtcContract→NzecContract), 3) Copy and adapt verify_payment.move to use Zcash LightClient and Transaction types, 4) Copy supporting modules (config.move, storage.move, utxo.move, redeem_request.move) with import updates, 5) Adapt tx_composer.move for Zcash transaction format (version_group_id, expiry_height, BLAKE2b tx_id).",
+			"reasoning": "The nBTC package is substantial: nbtc.move (858 lines), plus config.move, storage.move, verify_payment.move, utxo.move, redeem_request.move, tx_composer.move. While mostly copy-and-adapt, the tx_composer.move changes are non-trivial due to Zcash transaction format differences. The verify_payment.move is simpler (56 lines) and mostly import changes. Moderate-high complexity due to size and ensuring all dependencies are correctly updated."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Create Test Vectors from Zcash Testnet Blocks",
+			"complexityScore": 5,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break down into: 1) Set up connection to Zcash testnet RPC or identify reliable block explorer APIs to fetch raw block data, 2) Create a helper script (TypeScript/Python) to fetch and format block headers, nonces, and solutions from testnet blocks at various heights, 3) Create test_vectors.move with constants for block headers (140 bytes), nonces (32 bytes), solutions (100 bytes for testnet), and expected block hashes, 4) Add transaction test vectors including raw tx bytes and expected tx_ids (BLAKE2b computed), plus merkle proof data for transaction verification tests.",
+			"reasoning": "This requires external data gathering from Zcash testnet, understanding the exact byte format of headers and solutions, and careful documentation. The challenge is ensuring vectors are accurate and properly formatted for Move. Moderate complexity due to external dependencies and the need to verify vectors against Zcash reference implementation."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Comprehensive Integration Tests and Validation",
+			"complexityScore": 7,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down into: 1) Create light_client_tests.move with tests for initialization, header insertion, and chain extension using test vectors from Task 9, 2) Create equihash_tests.move testing valid/invalid solutions, edge cases (malformed solutions, wrong lengths), 3) Create difficulty_tests.move testing DigiShield calculations against real chain transitions, including oscillation damping verification, 4) Create fork_tests.move testing chain reorganization with Zcash blocks, 5) Create tx_verification_tests.move testing merkle proofs and transaction verification, 6) Create nZEC e2e_tests.move testing mint flow with Zcash payment verification.",
+			"reasoning": "Comprehensive testing across multiple modules requires understanding of all components and their interactions. The bitcoin_spv test suite has 7 test files; similar coverage is needed for zcash_spv. The challenge is creating meaningful tests that exercise edge cases, especially for DigiShield difficulty adjustment and Equihash verification. High complexity due to breadth and need for accurate test data."
+		},
+		{
+			"taskId": 11,
+			"taskTitle": "Copy Shared Utilities from bitcoin_lib to zcash_lib",
+			"complexityScore": 3,
+			"recommendedSubtasks": 0,
+			"expansionPrompt": "Copy reader.move (101 lines), encoding.move, crypto.move (11 lines, keep SHA256d for block hashing), output.move, input.move, and vector_utils.move from bitcoin_lib to zcash_lib. Update module declarations (bitcoin_lib→zcash_lib). Update zcash_lib/Move.toml to not depend on bitcoin_lib. Verify compilation succeeds.",
+			"reasoning": "These are utility modules with no Bitcoin-specific logic. reader.move (101 lines), crypto.move (11 lines), and other utilities are pure infrastructure code. The copy is straightforward and can be done in a single session. No algorithmic changes needed. Low complexity, no expansion needed."
+		},
+		{
+			"taskId": 12,
+			"taskTitle": "Fix Equihash Hash Generation for Correct Zcash Algorithm",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down into: 1) Study Zcash's Equihash implementation in zcash/src/crypto/equihash.cpp to understand exact hash generation formula for n=144,k=5, 2) Calculate correct parameters: hash_length = ceil((n+1)/8) = 19 bytes, indices_per_hash = floor(256/(n+1)) = 1, 3) Update generate_single_hash in equihash.move to compute correct BLAKE2b block index and extract correct byte range, 4) Add debug/test functions to verify individual hash outputs match reference implementation, 5) Test with real Zcash testnet block solutions to verify XOR tree verification passes with corrected hash generation.",
+			"reasoning": "The current equihash.move (456 lines) has an acknowledged issue with hash generation (HASH_LENGTH=18 vs correct 19, unclear index-to-block mapping). This requires deep understanding of Equihash algorithm internals and careful implementation matching Zcash's C++ reference. The XOR tree verification depends on correct hash generation. High complexity due to cryptographic algorithm details and need for bit-exact correctness."
+		}
+	]
+}

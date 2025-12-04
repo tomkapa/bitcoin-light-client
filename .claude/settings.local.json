@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.sui.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)",
+      "Bash(sui move build:*)",
+      "Bash(sui move test)",
+      "mcp__task-master-ai__get_task",
+      "mcp__task-master-ai__autopilot_start",
+      "mcp__task-master-ai__autopilot_resume",
+      "mcp__task-master-ai__autopilot_complete_phase",
+      "Bash(sui move test:*)",
+      "mcp__task-master-ai__autopilot_commit",
+      "mcp__task-master-ai__autopilot_finalize",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__task-master-ai__next_task",
+      "mcp__task-master-ai__set_task_status",
+      "Bash(ls:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "task-master-ai"
+  ]
+}

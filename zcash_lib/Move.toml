@@ -1,0 +1,13 @@
+[package]
+name = "zcash_lib"
+edition = "2024.beta"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "c1f1ae650fb9f9248b39a569400b4420820868db" }
+
+[addresses]
+zcash_lib = "0x1"
+
+[dev-dependencies]
+
+[dev-addresses]
