@@ -354,6 +354,41 @@ fun xor_bytes(a: &vector<u8>, b: &vector<u8>): vector<u8> {
 }
 
 // ============================================================================
+// Debug/Test Functions
+// ============================================================================
+
+/// Debug: Get hash for a specific index (public for testing)
+#[test_only]
+public fun debug_generate_hash(input: &vector<u8>, index: u32): vector<u8> {
+    let personal = blake2b::equihash_personal(144, 5);
+    generate_single_hash(input, index, &personal)
+}
+
+/// Debug: Get the block index for a solution index
+#[test_only]
+public fun debug_block_index(index: u32): u64 {
+    (index as u64) / INDICES_PER_HASH
+}
+
+/// Debug: Get the byte offset within BLAKE2b output
+#[test_only]
+public fun debug_hash_offset(index: u32): u64 {
+    ((index as u64) % INDICES_PER_HASH) * HASH_LENGTH
+}
+
+/// Debug: Expand solution and return indices
+#[test_only]
+public fun debug_expand_indices(solution: &vector<u8>): vector<u32> {
+    expand_indices(solution)
+}
+
+/// Debug: Generate all hashes for a solution
+#[test_only]
+public fun debug_generate_all_hashes(input: &vector<u8>, indices: &vector<u32>): vector<vector<u8>> {
+    generate_hashes(input, indices)
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
