@@ -10,5 +10,9 @@
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "task-master-ai"
+  ],
+  "enableAllProjectMcpServers": true
 }

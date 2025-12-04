@@ -1,5 +1,5 @@
 {
-  "master": {
+  "feat/blake2b-256": {
     "tasks": [
       {
         "id": 1,
