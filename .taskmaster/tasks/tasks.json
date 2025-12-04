@@ -1,5 +1,5 @@
 {
-  "feat/blake2b-256": {
+  "feat/blake2b-256-implementation": {
     "tasks": [
       {
         "id": 1,
