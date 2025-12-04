@@ -1,4 +1,36 @@
-<!-- 89663968-a3ff-4d86-bafb-e9b87885e73a 0676970a-ac41-4efe-9450-2a7ce91876f5 -->
+---
+name: Zcash Light Client Implementation Plan
+overview: ""
+todos:
+  - id: 22b8bd9c-2bf6-466c-a9d2-3082c11ab7ed
+    content: Rename bitcoin_lib to zcash_lib, bitcoin_spv to zcash_spv, nBTC to nZEC
+    status: pending
+  - id: e13b7cfe-e193-4fc3-8db6-e847f00858c1
+    content: Update BlockHeader struct for Zcash (140 bytes, 32-byte nonce, hash_reserved)
+    status: pending
+  - id: c575d27b-694e-48e3-a3e8-2e4fd32f7fdd
+    content: Implement Zcash testnet params (DigiShield, 75s blocks, new limits)
+    status: pending
+  - id: 75d4f58c-07a1-456b-a5b8-7eed201192c1
+    content: Create committee.move for Equihash attestation verification
+    status: pending
+  - id: a23c13e1-ba1d-44af-980a-dc992b69a0c9
+    content: Replace Bitcoin retarget with DigiShield per-block adjustment
+    status: pending
+  - id: 0053cc1b-b747-4e05-81c2-5efbb7f4b187
+    content: Update Transaction struct for v4 format (nExpiryHeight, versionGroupId)
+    status: pending
+  - id: c0f6fac2-54e6-4796-bcc0-1cdba3ba408f
+    content: "Decide BLAKE2b strategy: implement in Move or use committee attestation"
+    status: pending
+  - id: acfdd0f1-8cdd-4b45-86ec-36771c0680c7
+    content: Update light_client.move to use committee verification instead of PoW check
+    status: pending
+  - id: 63730ccf-b474-479b-a43a-97c313065036
+    content: Create test vectors from Zcash testnet blocks
+    status: pending
+---
+
 # Zcash Light Client Implementation Plan
 
 ## Key Differences: Bitcoin vs Zcash
@@ -169,15 +201,3 @@ public fun calc_next_required_difficulty(lc: &LightClient, parent: &LightBlock):
 2. Create test vectors from real testnet blocks
 3. Unit test Equihash verification with known solutions
 4. Integration test with actual Zcash testnet RPC
-
-### To-dos
-
-- [ ] Rename bitcoin_lib to zcash_lib, bitcoin_spv to zcash_spv, nBTC to nZEC
-- [ ] Update BlockHeader struct for Zcash (140 bytes, 32-byte nonce, hash_reserved)
-- [ ] Implement Zcash testnet params (DigiShield, 75s blocks, new limits)
-- [ ] Create committee.move for Equihash attestation verification
-- [ ] Replace Bitcoin retarget with DigiShield per-block adjustment
-- [ ] Update Transaction struct for v4 format (nExpiryHeight, versionGroupId)
-- [ ] Decide BLAKE2b strategy: implement in Move or use committee attestation
-- [ ] Update light_client.move to use committee verification instead of PoW check
-- [ ] Create test vectors from Zcash testnet blocks
