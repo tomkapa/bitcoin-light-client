@@ -12,7 +12,10 @@
       "mcp__task-master-ai__autopilot_resume",
       "mcp__task-master-ai__autopilot_complete_phase",
       "Bash(sui move test:*)",
-      "mcp__task-master-ai__autopilot_commit"
+      "mcp__task-master-ai__autopilot_commit",
+      "mcp__task-master-ai__autopilot_finalize",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
