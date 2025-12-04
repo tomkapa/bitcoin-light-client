@@ -18,7 +18,9 @@
       "Bash(git commit:*)",
       "mcp__task-master-ai__next_task",
       "mcp__task-master-ai__set_task_status",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "mcp__task-master-ai__autopilot_status",
+      "mcp__task-master-ai__autopilot_abort"
     ],
     "deny": [],
     "ask": []
