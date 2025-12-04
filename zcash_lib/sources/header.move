@@ -2,6 +2,9 @@
 
 module zcash_lib::header;
 
+use bitcoin_lib::crypto::hash256;
+use bitcoin_lib::reader;
+
 // === Constants ===
 const BLOCK_HEADER_SIZE: u64 = 140;
 const TESTNET_SOLUTION_SIZE: u64 = 100;
@@ -28,34 +31,30 @@ public struct BlockHeader has copy, drop, store {
 public fun new(raw_block_header: vector<u8>): BlockHeader {
     assert!(raw_block_header.length() == BLOCK_HEADER_SIZE, EInvalidBlockHeaderSize);
 
-    // For now, create a minimal struct to satisfy the tests
-    // We'll implement proper parsing in the next subtask
-    let mut parent = vector::empty();
-    let mut merkle_root = vector::empty();
-    let mut hash_reserved = vector::empty();
-    let mut nonce = vector::empty();
-    let mut block_hash = vector::empty();
+    // Parse header using reader
+    let mut r = reader::new(raw_block_header);
 
-    // Fill vectors with correct lengths (32 bytes each)
-    let mut i = 0;
-    while (i < 32) {
-        parent.push_back(0);
-        merkle_root.push_back(0);
-        hash_reserved.push_back(0);
-        nonce.push_back(0);
-        block_hash.push_back(0);
-        i = i + 1;
-    };
+    // Parse fields in order
+    let version = r.read_u32();           // 4 bytes
+    let parent = r.read(32);              // 32 bytes
+    let merkle_root = r.read(32);         // 32 bytes
+    let hash_reserved = r.read(32);       // 32 bytes (Zcash-specific)
+    let timestamp = r.read_u32();         // 4 bytes
+    let bits = r.read_u32();              // 4 bytes
+    let nonce = r.read(32);               // 32 bytes (NOT u32 like Bitcoin)
+
+    // Compute block hash using SHA256d of the entire 140-byte header
+    let block_hash = hash256(raw_block_header);
 
     BlockHeader {
-        version: 4,
+        version,
         parent,
         merkle_root,
         hash_reserved,
-        timestamp: 0,
-        bits: 0,
+        timestamp,
+        bits,
         nonce,
-        solution: vector::empty(),
+        solution: vector::empty(),  // Solution not included in header parsing
         block_hash,
     }
 }
