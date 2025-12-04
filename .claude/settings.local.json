@@ -21,7 +21,9 @@
       "Bash(ls:*)",
       "mcp__task-master-ai__autopilot_status",
       "mcp__task-master-ai__autopilot_abort",
-      "Bash(sui:*)"
+      "Bash(sui:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []

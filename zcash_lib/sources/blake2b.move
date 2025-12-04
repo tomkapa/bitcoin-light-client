@@ -37,6 +37,9 @@ const R2: u8 = 24;
 const R3: u8 = 16;
 const R4: u8 = 63;
 
+// Number of 64-bit words in BLAKE2b state
+const STATE_WORDS: u64 = 8;
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -165,14 +168,18 @@ public fun update(state: &mut Blake2b, data: &vector<u8>) {
     };
 }
 
-/// Finalize and return the 32-byte hash.
+/// Finalize and return the hash with the configured output length.
 public fun finalize(state: &mut Blake2b): vector<u8> {
-    finalize_with_length(state, 32)
+    let output_len = state.out_len as u64;
+    finalize_with_length(state, output_len)
 }
 
 /// Finalize and return hash with custom output length (1-64 bytes).
+/// The output_len should match the configured state.out_len for BLAKE2b spec compliance.
 public fun finalize_with_length(state: &mut Blake2b, output_len: u64): vector<u8> {
     assert!(output_len > 0 && output_len <= 64, 0);
+    // Validate that output_len matches the configured digest length for spec compliance
+    assert!(output_len == (state.out_len as u64), 1);
 
     // Update counter for final block
     state.t = state.t + (state.buf_len as u128);
@@ -187,12 +194,12 @@ public fun finalize_with_length(state: &mut Blake2b, output_len: u64): vector<u8
     // Final compression
     compress(state, true);
 
-    // Extract output (up to 64 bytes = 8 words * 8 bytes)
+    // Extract output (up to 64 bytes = STATE_WORDS * 8 bytes)
     let mut out = vector[];
     let mut bytes_extracted = 0;
     let mut word_idx = 0;
 
-    while (bytes_extracted < output_len && word_idx < 8) {
+    while (bytes_extracted < output_len && word_idx < STATE_WORDS) {
         let word = *vector::borrow(&state.h, word_idx);
         let mut byte_in_word = 0;
 
