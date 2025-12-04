@@ -37,6 +37,9 @@ const R2: u8 = 24;
 const R3: u8 = 16;
 const R4: u8 = 63;
 
+// Number of 64-bit words in BLAKE2b state
+const STATE_WORDS: u64 = 8;
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -46,11 +49,18 @@ const R4: u8 = 63;
 /// For Equihash, use: personalization = "ZcashPoW" + LE32(n) + LE32(k)
 /// where n=144, k=5 for testnet.
 public fun new_with_personal(personalization: vector<u8>): Blake2b {
+    new_with_personal_and_length(personalization, 32)
+}
+
+/// Create a new BLAKE2b hasher with personalization and custom output length.
+/// output_len must be between 1 and 64 bytes.
+public fun new_with_personal_and_length(personalization: vector<u8>, output_len: u8): Blake2b {
     assert!(vector::length(&personalization) <= 16, 0);
+    assert!(output_len > 0 && output_len <= 64, 1);
 
     // Build parameter block (64 bytes)
     let mut param = create_zero_vector(64);
-    *vector::borrow_mut(&mut param, 0) = 32; // digest length
+    *vector::borrow_mut(&mut param, 0) = output_len; // digest length
     *vector::borrow_mut(&mut param, 1) = 0;  // key length
     *vector::borrow_mut(&mut param, 2) = 1;  // fanout
     *vector::borrow_mut(&mut param, 3) = 1;  // depth
@@ -90,7 +100,7 @@ public fun new_with_personal(personalization: vector<u8>): Blake2b {
         t: 0,
         buf: create_zero_vector(128),
         buf_len: 0,
-        out_len: 32,
+        out_len: output_len,
     }
 }
 
@@ -158,8 +168,19 @@ public fun update(state: &mut Blake2b, data: &vector<u8>) {
     };
 }
 
-/// Finalize and return the 32-byte hash.
+/// Finalize and return the hash with the configured output length.
 public fun finalize(state: &mut Blake2b): vector<u8> {
+    let output_len = state.out_len as u64;
+    finalize_with_length(state, output_len)
+}
+
+/// Finalize and return hash with custom output length (1-64 bytes).
+/// The output_len should match the configured state.out_len for BLAKE2b spec compliance.
+public fun finalize_with_length(state: &mut Blake2b, output_len: u64): vector<u8> {
+    assert!(output_len > 0 && output_len <= 64, 0);
+    // Validate that output_len matches the configured digest length for spec compliance
+    assert!(output_len == (state.out_len as u64), 1);
+
     // Update counter for final block
     state.t = state.t + (state.buf_len as u128);
 
@@ -173,20 +194,23 @@ public fun finalize(state: &mut Blake2b): vector<u8> {
     // Final compression
     compress(state, true);
 
-    // Extract output (32 bytes for BLAKE2b-256)
+    // Extract output (up to 64 bytes = STATE_WORDS * 8 bytes)
     let mut out = vector[];
-    let mut i = 0;
-    while (i < 4) { // 4 words * 8 bytes = 32 bytes
-        let word = *vector::borrow(&state.h, i);
-        vector::push_back(&mut out, (word & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 8) & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 16) & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 24) & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 32) & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 40) & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 48) & 0xff) as u8);
-        vector::push_back(&mut out, ((word >> 56) & 0xff) as u8);
-        i = i + 1;
+    let mut bytes_extracted = 0;
+    let mut word_idx = 0;
+
+    while (bytes_extracted < output_len && word_idx < STATE_WORDS) {
+        let word = *vector::borrow(&state.h, word_idx);
+        let mut byte_in_word = 0;
+
+        while (byte_in_word < 8 && bytes_extracted < output_len) {
+            let byte_val = ((word >> (byte_in_word * 8)) & 0xff) as u8;
+            vector::push_back(&mut out, byte_val);
+            bytes_extracted = bytes_extracted + 1;
+            byte_in_word = byte_in_word + 1;
+        };
+
+        word_idx = word_idx + 1;
     };
 
     out
@@ -197,6 +221,19 @@ public fun hash_with_personal(data: &vector<u8>, personalization: vector<u8>): v
     let mut state = new_with_personal(personalization);
     update(&mut state, data);
     finalize(&mut state)
+}
+
+/// One-shot hash with personalization and custom output length.
+/// Supports output lengths from 1 to 64 bytes.
+public fun hash_with_personal_and_length(
+    data: &vector<u8>,
+    personalization: vector<u8>,
+    output_len: u64
+): vector<u8> {
+    assert!(output_len > 0 && output_len <= 64, 0);
+    let mut state = new_with_personal_and_length(personalization, (output_len as u8));
+    update(&mut state, data);
+    finalize_with_length(&mut state, output_len)
 }
 
 /// One-shot hash without personalization.

@@ -38,6 +38,12 @@ const COLLISION_BYTES: u64 = 3;
 /// Hash output length: (k+1) * collision_bytes = 18 bytes
 const HASH_LENGTH: u64 = 18;
 
+/// Number of N-bit strings per BLAKE2b output: 512/N = 512/144 = 3
+const INDICES_PER_HASH: u64 = 3;
+
+/// BLAKE2b output size for hash generation: INDICES_PER_HASH * N / 8 = 3 * 144 / 8 = 54 bytes
+const HASH_OUTPUT_SIZE: u64 = 54;
+
 /// Compressed solution size: (NUM_INDICES * INDEX_BITS + 7) / 8 = 84 bytes
 const SOLUTION_SIZE: u64 = 84;
 
@@ -240,42 +246,37 @@ fun generate_hashes(input: &vector<u8>, indices: &vector<u32>): vector<vector<u8
 }
 
 /// Generate hash for a single index.
-/// BLAKE2b(input || LE32(index / hashes_per_block)) then extract appropriate slice.
+/// For n=144, k=5: BLAKE2b produces 54 bytes, containing 3 hashes of 18 bytes each.
+/// Formula: block_index = index / INDICES_PER_HASH, offset = (index % INDICES_PER_HASH) * HASH_LENGTH
 fun generate_single_hash(input: &vector<u8>, index: u32, personal: &vector<u8>): vector<u8> {
-    // For n=144, k=5: each BLAKE2b output (32 bytes) contains multiple hash outputs
-    // Hash output is 18 bytes (HASH_LENGTH), and we get 32/18 = 1 full hash per BLAKE2b
-    // Actually, we need to compute: how many hashes fit in one BLAKE2b-256 output
-    // hash_length = 18 bytes, blake2b output = 32 bytes
-    // hashes_per_blake = 32 / 18 = 1 (with some waste)
-
-    // For Zcash's Equihash, the formula is:
-    // BLAKE2b(input || LE32(i)) produces 32 bytes
-    // We extract hash_length bytes starting at (i % indices_per_hash) * hash_length
-
-    // Simpler approach for n=144, k=5:
-    // Each index i generates: BLAKE2b(input || LE32(i / 2))[hash_len * (i % 2) : hash_len * (i % 2 + 1)]
-    // But 2 * 18 = 36 > 32, so actually we use one BLAKE2b per hash
-
-    // Let's use the standard approach: BLAKE2b(input || LE32(index))
-    // Then take first HASH_LENGTH bytes
+    // Compute which BLAKE2b block this index falls in
+    let block_index = (index as u64) / INDICES_PER_HASH;
+    // Compute byte offset within the 54-byte output
+    let offset = ((index as u64) % INDICES_PER_HASH) * HASH_LENGTH;
 
     let mut hash_input = *input;
-    // Append index as little-endian u32
-    vector::push_back(&mut hash_input, (index & 0xff) as u8);
-    vector::push_back(&mut hash_input, ((index >> 8) & 0xff) as u8);
-    vector::push_back(&mut hash_input, ((index >> 16) & 0xff) as u8);
-    vector::push_back(&mut hash_input, ((index >> 24) & 0xff) as u8);
+    // Append block_index as little-endian u32
+    let block_idx_u32 = (block_index as u32);
+    vector::push_back(&mut hash_input, (block_idx_u32 & 0xff) as u8);
+    vector::push_back(&mut hash_input, ((block_idx_u32 >> 8) & 0xff) as u8);
+    vector::push_back(&mut hash_input, ((block_idx_u32 >> 16) & 0xff) as u8);
+    vector::push_back(&mut hash_input, ((block_idx_u32 >> 24) & 0xff) as u8);
 
-    let full_hash = blake2b::hash_with_personal(&hash_input, *personal);
+    // BLAKE2b-432 (54 bytes = 432 bits) with Equihash personalization
+    let full_hash = blake2b::hash_with_personal_and_length(&hash_input, *personal, HASH_OUTPUT_SIZE);
 
-    // Extract first HASH_LENGTH bytes
+    // Extract HASH_LENGTH bytes starting at offset
+    extract_bytes(&full_hash, offset, HASH_LENGTH)
+}
+
+/// Extract bytes from a vector starting at offset for length bytes.
+fun extract_bytes(src: &vector<u8>, offset: u64, len: u64): vector<u8> {
     let mut result = vector[];
     let mut i = 0;
-    while (i < HASH_LENGTH) {
-        vector::push_back(&mut result, *vector::borrow(&full_hash, i));
+    while (i < len) {
+        vector::push_back(&mut result, *vector::borrow(src, offset + i));
         i = i + 1;
     };
-
     result
 }
 
@@ -350,6 +351,41 @@ fun xor_bytes(a: &vector<u8>, b: &vector<u8>): vector<u8> {
     };
 
     result
+}
+
+// ============================================================================
+// Debug/Test Functions
+// ============================================================================
+
+/// Debug: Get hash for a specific index (public for testing)
+#[test_only]
+public fun debug_generate_hash(input: &vector<u8>, index: u32): vector<u8> {
+    let personal = blake2b::equihash_personal(144, 5);
+    generate_single_hash(input, index, &personal)
+}
+
+/// Debug: Get the block index for a solution index
+#[test_only]
+public fun debug_block_index(index: u32): u64 {
+    (index as u64) / INDICES_PER_HASH
+}
+
+/// Debug: Get the byte offset within BLAKE2b output
+#[test_only]
+public fun debug_hash_offset(index: u32): u64 {
+    ((index as u64) % INDICES_PER_HASH) * HASH_LENGTH
+}
+
+/// Debug: Expand solution and return indices
+#[test_only]
+public fun debug_expand_indices(solution: &vector<u8>): vector<u32> {
+    expand_indices(solution)
+}
+
+/// Debug: Generate all hashes for a solution
+#[test_only]
+public fun debug_generate_all_hashes(input: &vector<u8>, indices: &vector<u32>): vector<vector<u8>> {
+    generate_hashes(input, indices)
 }
 
 // ============================================================================
