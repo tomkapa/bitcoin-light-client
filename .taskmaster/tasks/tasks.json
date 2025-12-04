@@ -2,14 +2,14 @@
   "feat/blake2b-256-implementation": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Create zcash_lib header.move with Zcash Block Header Structure",
         "description": "Implement the Zcash block header structure which differs significantly from Bitcoin - 140 bytes base header (without solution) vs Bitcoin's 80 bytes, including 32-byte nonce and hash_reserved field.",
         "details": "Create `zcash_lib/sources/header.move` with:\n\n```move\npublic struct BlockHeader has copy, drop, store {\n    version: u32,              // 4 bytes\n    parent: vector<u8>,        // 32 bytes\n    merkle_root: vector<u8>,   // 32 bytes\n    hash_reserved: vector<u8>, // 32 bytes (Zcash-specific for Sapling commitment)\n    timestamp: u32,            // 4 bytes\n    bits: u32,                 // 4 bytes (difficulty target)\n    nonce: vector<u8>,         // 32 bytes (vs 4 bytes in Bitcoin)\n    solution: vector<u8>,      // 100 bytes for testnet (144,5), 1344 bytes for mainnet (200,9)\n    block_hash: vector<u8>,    // computed via SHA256d\n}\n```\n\nKey implementation details:\n- Header size constant: 140 bytes (without solution)\n- Solution sizes: TESTNET_SOLUTION_SIZE = 100, MAINNET_SOLUTION_SIZE = 1344\n- Block hash computed as SHA256d of version || parent || merkle_root || hash_reserved || timestamp || bits || nonce (140 bytes)\n- Add getter functions for all fields\n- Add `new()` constructor that parses raw bytes and computes block_hash\n- Reuse crypto functions from existing `bitcoin_lib/sources/crypto.move` for SHA256d",
         "testStrategy": "Unit tests with real Zcash testnet block headers. Test parsing of 140-byte header, verify block hash computation matches known values. Test both testnet (100-byte solution) and placeholder for mainnet (1344-byte solution).",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -18,7 +18,8 @@
             "dependencies": [],
             "details": "Create the header.move file with: 1) Define constants BLOCK_HEADER_SIZE = 140 (without solution), TESTNET_SOLUTION_SIZE = 100, MAINNET_SOLUTION_SIZE = 1344. 2) Define BlockHeader struct with all fields: version (u32, 4 bytes), parent (vector<u8>, 32 bytes), merkle_root (vector<u8>, 32 bytes), hash_reserved (vector<u8>, 32 bytes - Zcash-specific for Sapling commitment), timestamp (u32, 4 bytes), bits (u32, 4 bytes), nonce (vector<u8>, 32 bytes - unlike Bitcoin's 4-byte nonce), solution (vector<u8>, variable size), block_hash (vector<u8>, computed). 3) Add error constant EInvalidBlockHeaderSize for validation. Follow the pattern from bitcoin_lib/sources/header.move but adapted for Zcash's 140-byte header structure.",
             "status": "pending",
-            "testStrategy": "Verify struct definition compiles. Test that constants have correct values. Verify struct has copy, drop, store abilities like Bitcoin implementation."
+            "testStrategy": "Verify struct definition compiles. Test that constants have correct values. Verify struct has copy, drop, store abilities like Bitcoin implementation.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -29,7 +30,8 @@
             ],
             "details": "Implement the new() constructor: 1) Create a reader module in zcash_lib OR reuse bitcoin_lib::reader (check Move.toml dependencies). 2) Assert input is exactly 140 bytes (BLOCK_HEADER_SIZE). 3) Parse fields in order using reader: version (read_u32), parent (read 32 bytes), merkle_root (read 32 bytes), hash_reserved (read 32 bytes), timestamp (read_u32), bits (read_u32), nonce (read 32 bytes - NOT read_u32 like Bitcoin). 4) Compute block_hash using SHA256d of the full 140-byte input. 5) Initialize solution as empty vector (to be set separately if needed). Follow bitcoin_lib/sources/header.move:27-39 pattern but adapted for Zcash field sizes. Consider adding new_with_solution() variant that accepts header + solution bytes.",
             "status": "pending",
-            "testStrategy": "Unit test with real Zcash testnet block header bytes. Verify all fields are parsed correctly. Test that block hash computation matches known Zcash block hashes."
+            "testStrategy": "Unit test with real Zcash testnet block header bytes. Verify all fields are parsed correctly. Test that block hash computation matches known Zcash block hashes.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -40,7 +42,8 @@
             ],
             "details": "Implement block hash computation: 1) Add dependency on bitcoin_lib in zcash_lib/Move.toml if not present, OR copy the hash256 function from bitcoin_lib/sources/crypto.move. 2) The block hash for Zcash is SHA256d (double SHA256) of the 140-byte header portion: version || parent || merkle_root || hash_reserved || timestamp || bits || nonce. 3) This is computed in the new() constructor and stored in block_hash field. 4) Important: Solution is NOT included in block hash computation (unlike some other PoW algorithms). 5) Alternatively, create zcash_lib/sources/crypto.move if keeping zcash_lib self-contained is preferred. The hash256 function is simple: sha2_256(sha2_256(data)).",
             "status": "pending",
-            "testStrategy": "Test with known Zcash testnet block headers and verify computed hash matches expected block hash from explorer/RPC. Test hash byte ordering (little-endian display vs big-endian storage)."
+            "testStrategy": "Test with known Zcash testnet block headers and verify computed hash matches expected block hash from explorer/RPC. Test hash byte ordering (little-endian display vs big-endian storage).",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -51,19 +54,21 @@
             ],
             "details": "Add getter functions following bitcoin_lib/sources/header.move:41-68 pattern: 1) block_hash(header: &BlockHeader): vector<u8> - returns computed block hash. 2) version(header: &BlockHeader): u32 - returns version field. 3) parent(header: &BlockHeader): vector<u8> - returns parent block hash. 4) merkle_root(header: &BlockHeader): vector<u8> - returns merkle root. 5) hash_reserved(header: &BlockHeader): vector<u8> - returns Zcash-specific hash_reserved (Sapling commitment). 6) timestamp(header: &BlockHeader): u32 - returns timestamp. 7) bits(header: &BlockHeader): u32 - returns difficulty target bits. 8) nonce(header: &BlockHeader): vector<u8> - returns 32-byte nonce (NOT u32 like Bitcoin). 9) solution(header: &BlockHeader): vector<u8> - returns Equihash solution. 10) Add solution size helper functions: is_testnet_solution(solution: &vector<u8>): bool and is_mainnet_solution(solution: &vector<u8>): bool that check length against constants.",
             "status": "pending",
-            "testStrategy": "Unit test each getter function. Verify return types match field types. Test solution size validation helpers with 100-byte and 1344-byte vectors."
+            "testStrategy": "Unit test each getter function. Verify return types match field types. Test solution size validation helpers with 100-byte and 1344-byte vectors.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2025-12-04T14:22:50.066Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Create zcash_spv Package with Network Parameters",
         "description": "Create the zcash_spv package and implement params.move with Zcash network parameters including DigiShield difficulty adjustment constants, Equihash parameters, and 75-second block time.",
         "details": "Create new `zcash_spv/Move.toml` with dependency on `zcash_lib`.\n\nCreate `zcash_spv/sources/params.move`:\n\n```move\nconst DIFFICULTYADJUSTMENT_DIGISHIELD: u8 = 3;\n\npublic struct Params has store {\n    power_limit: u256,\n    power_limit_bits: u32,\n    target_spacing: u64,      // 75 seconds for Zcash\n    averaging_window: u64,    // 17 blocks for DigiShield\n    median_time_span: u64,    // 11 blocks\n    equihash_n: u32,          // 144 for testnet, 200 for mainnet\n    equihash_k: u32,          // 5 for testnet, 9 for mainnet\n    difficulty_adjustment: u8,\n}\n\npublic fun testnet(): Params {\n    Params {\n        power_limit: 0x0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,\n        power_limit_bits: 0x2007ffff,\n        target_spacing: 75,\n        averaging_window: 17,\n        median_time_span: 11,\n        equihash_n: 144,\n        equihash_k: 5,\n        difficulty_adjustment: DIFFICULTYADJUSTMENT_DIGISHIELD,\n    }\n}\n```\n\nAdd mainnet parameters as well (equihash_n=200, equihash_k=9).",
         "testStrategy": "Unit tests verifying parameter values match Zcash specification. Test power_limit conversion, verify Equihash parameters are correct for each network.",
         "priority": "high",
         "dependencies": [
-          1
+          "1"
         ],
         "status": "pending",
         "subtasks": [
@@ -74,7 +79,8 @@
             "dependencies": [],
             "details": "Create zcash_spv/Move.toml with:\n- Package name 'zcash_spv' with edition '2024.beta' and license 'MPL-2.0'\n- Local dependency on zcash_lib: `zcash_lib = { local = \"../zcash_lib\" }`\n- Address definition: `zcash_spv = \"0x0\"`\n- Follow the same structure as bitcoin_spv/Move.toml but reference zcash_lib instead of bitcoin_lib",
             "status": "pending",
-            "testStrategy": "Run `sui move build` in the zcash_spv directory to verify the package compiles with the declared dependencies. Verify the dependency on zcash_lib resolves correctly."
+            "testStrategy": "Run `sui move build` in the zcash_spv directory to verify the package compiles with the declared dependencies. Verify the dependency on zcash_lib resolves correctly.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -85,7 +91,8 @@
             ],
             "details": "Create zcash_spv/sources/params.move with:\n- Module declaration: `module zcash_spv::params;`\n- Constant: `const DIFFICULTYADJUSTMENT_DIGISHIELD: u8 = 3;`\n- Params struct with fields: power_limit (u256), power_limit_bits (u32), target_spacing (u64 for 75-second blocks), averaging_window (u64 for 17-block DigiShield window), median_time_span (u64 for 11 blocks), equihash_n (u32), equihash_k (u32), difficulty_adjustment (u8)\n- Add getter functions for each field following bitcoin_spv/params.move pattern\n- Add helper functions like is_digishield() to check difficulty adjustment type",
             "status": "pending",
-            "testStrategy": "Write unit tests to verify the Params struct can be instantiated and all getter functions return expected values. Test that field types match Zcash specification requirements."
+            "testStrategy": "Write unit tests to verify the Params struct can be instantiated and all getter functions return expected values. Test that field types match Zcash specification requirements.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -96,19 +103,20 @@
             ],
             "details": "Add to zcash_spv/sources/params.move:\n\n1. testnet() function returning Params with:\n   - power_limit: 0x0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n   - power_limit_bits: 0x2007ffff\n   - target_spacing: 75 (seconds)\n   - averaging_window: 17 (blocks)\n   - median_time_span: 11 (blocks)\n   - equihash_n: 144, equihash_k: 5\n   - difficulty_adjustment: DIFFICULTYADJUSTMENT_DIGISHIELD\n\n2. mainnet() function returning Params with:\n   - power_limit: 0x0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\n   - power_limit_bits: 0x2007ffff\n   - target_spacing: 75, averaging_window: 17, median_time_span: 11\n   - equihash_n: 200, equihash_k: 9\n   - difficulty_adjustment: DIFFICULTYADJUSTMENT_DIGISHIELD",
             "status": "pending",
-            "testStrategy": "Unit tests verifying: testnet() returns equihash_n=144, equihash_k=5; mainnet() returns equihash_n=200, equihash_k=9; both have target_spacing=75, averaging_window=17. Verify power_limit values match Zcash specification."
+            "testStrategy": "Unit tests verifying: testnet() returns equihash_n=144, equihash_k=5; mainnet() returns equihash_n=200, equihash_k=9; both have target_spacing=75, averaging_window=17. Verify power_limit values match Zcash specification.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Implement DigiShield Difficulty Adjustment Algorithm",
         "description": "Replace Bitcoin's 2016-block retarget algorithm with Zcash's DigiShield per-block difficulty adjustment that uses a 17-block averaging window and median time calculations.",
         "details": "Create `zcash_spv/sources/difficulty.move`:\n\n```move\n/// DigiShield v3 difficulty adjustment (used by Zcash)\n/// Adjusts difficulty every block based on:\n/// - averaging_window = 17 blocks\n/// - Uses median timestamps for stability\n/// - Damping factor of 4 to prevent oscillation\n\npublic fun calc_next_difficulty(\n    params: &Params,\n    last_block_time: u32,\n    last_block_bits: u32,\n    avg_target: u256,       // Average target over window\n    median_time_past: u64,  // Median of last 11 timestamps\n    median_time_first: u64, // Median timestamp at start of averaging window\n): u32 {\n    // Calculate actual timespan\n    let actual_timespan = median_time_past - median_time_first;\n    \n    // Apply damping factor\n    let target_timespan = params.target_spacing() * params.averaging_window();\n    let damped_timespan = actual_timespan + 3 * target_timespan;\n    let actual_timespan_damped = damped_timespan / 4;\n    \n    // Clamp to min/max (0.75x to 1.25x)\n    let min_timespan = target_timespan * 3 / 4;  // 75%\n    let max_timespan = target_timespan * 5 / 4;  // 125%\n    let clamped_timespan = clamp(actual_timespan_damped, min_timespan, max_timespan);\n    \n    // Calculate new target\n    let new_target = avg_target * clamped_timespan / target_timespan;\n    target_to_bits(new_target)\n}\n```\n\nReference: https://github.com/zcash/zcash/blob/master/src/pow.cpp",
         "testStrategy": "Test with known Zcash testnet block sequences. Verify difficulty adjustments match real chain data. Test edge cases: very fast blocks, very slow blocks, oscillation damping.",
         "priority": "high",
         "dependencies": [
-          2
+          "2"
         ],
         "status": "pending",
         "subtasks": [
@@ -119,7 +127,8 @@
             "dependencies": [],
             "details": "Review https://github.com/zcash/zcash/blob/master/src/pow.cpp (GetNextWorkRequired and CalculateNextWorkRequired functions). Document: 1) Formula: new_target = avg_target * clamped_timespan / target_timespan, 2) averaging_window = 17 blocks, 3) target_spacing = 75 seconds (testnet) / 150 seconds (mainnet), 4) Damping: damped_timespan = avg_window_timespan + (actual_timespan - avg_window_timespan) / 4, 5) Clamping: lower = 75% of target, upper = 125% of target, 6) Median calculation: MTP(block[N]) - MTP(block[N-27]) where MTP uses 11-block median. Also note PoWMaxAdjustUp=16% and PoWMaxAdjustDown=32% secondary limits. Create documentation comment block in difficulty.move with full formula derivation.",
             "status": "pending",
-            "testStrategy": "Cross-reference documented formula against Zcash protocol specification (https://zips.z.cash/protocol/protocol.pdf) and Zebra difficulty RFC. Verify parameter values match chainparams.cpp for both mainnet and testnet configurations."
+            "testStrategy": "Cross-reference documented formula against Zcash protocol specification (https://zips.z.cash/protocol/protocol.pdf) and Zebra difficulty RFC. Verify parameter values match chainparams.cpp for both mainnet and testnet configurations.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -130,7 +139,8 @@
             ],
             "details": "Implement public fun calc_next_difficulty(params: &Params, avg_target: u256, median_time_past: u64, median_time_first: u64): u32 that: 1) Calculates actual_timespan = median_time_past - median_time_first, 2) Gets target_timespan = params.target_spacing() * params.averaging_window() (75*17=1275 for testnet), 3) Applies damping: damped_timespan = target_timespan + (actual_timespan - target_timespan) / 4, 4) Clamps to bounds: min = target_timespan * 3/4, max = target_timespan * 5/4, 5) Calculates new_target = avg_target * clamped_timespan / target_timespan, 6) Ensures new_target <= power_limit, 7) Converts to compact bits format using target_to_bits. Handle u256 arithmetic carefully to avoid overflow - divide before multiply where possible.",
             "status": "pending",
-            "testStrategy": "Unit test with known inputs: avg_target=0x0007ffffffffffff..., median_time_past=1234567890, median_time_first=1234566615 (diff=1275s=exact target), verify output equals input target. Test edge cases: timespan=0, timespan=max_u64, extremely high/low targets."
+            "testStrategy": "Unit test with known inputs: avg_target=0x0007ffffffffffff..., median_time_past=1234567890, median_time_first=1234566615 (diff=1275s=exact target), verify output equals input target. Test edge cases: timespan=0, timespan=max_u64, extremely high/low targets.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -141,7 +151,8 @@
             ],
             "details": "Implement public fun calculate_average_target(targets: &vector<u256>): u256 that: 1) Takes a vector of exactly 17 target values (converted from compact bits), 2) Sums all 17 targets using u256 arithmetic (watch for overflow - sum of 17 max targets is ~17*2^256 which overflows), 3) Divides sum by 17 to get average. Alternative safe implementation: compute running average or use u256 with intermediate checks. Also implement fun bits_to_target(bits: u32): u256 helper if not already available from bitcoin_lib. The averaging window spans blocks at heights [current_height - 16, current_height - 15, ..., current_height] relative to the parent block for which we're calculating difficulty.",
             "status": "pending",
-            "testStrategy": "Test with uniform targets (all same value) - average should equal input. Test with varied targets including edge cases (power_limit, minimum difficulty). Verify no overflow with 17 maximum-value targets by using safe arithmetic patterns."
+            "testStrategy": "Test with uniform targets (all same value) - average should equal input. Test with varied targets including edge cases (power_limit, minimum difficulty). Verify no overflow with 17 maximum-value targets by using safe arithmetic patterns.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -152,7 +163,8 @@
             ],
             "details": "Implement: 1) public fun calc_median_timestamp(timestamps: &vector<u64>): u64 - takes exactly 11 timestamps, sorts them, returns median (6th element after sorting), 2) The calling code in light_client.move will need to collect timestamps from blocks [height-10..height] for MTP(current) and [height-37..height-27] for MTP(anchor). The timespan calculation spans 28 block heights total. Important: Unlike Bitcoin which uses MTP only for validation, DigiShield uses the difference of two MTPs for difficulty calculation. Implement nth_element sorting helper or use existing one from bitcoin_spv. Handle edge case where fewer than 11 blocks exist (genesis region) - use available blocks only.",
             "status": "pending",
-            "testStrategy": "Test median calculation with: odd-length vector [1,2,3,4,5,6,7,8,9,10,11] should return 6. Test with unsorted input. Test edge case with fewer blocks. Verify against known Zcash testnet MTP values from block explorers."
+            "testStrategy": "Test median calculation with: odd-length vector [1,2,3,4,5,6,7,8,9,10,11] should return 6. Test with unsorted input. Test edge case with fewer blocks. Verify against known Zcash testnet MTP values from block explorers.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -165,21 +177,22 @@
             ],
             "details": "Create difficulty_tests.move with: 1) Test vectors from Zcash testnet - fetch ~50 consecutive blocks around a difficulty adjustment using block explorer API, record height/timestamp/bits for each, 2) Test calc_next_difficulty produces correct bits for known transitions, 3) Test edge cases: very fast blocks (all blocks in 30 seconds), very slow blocks (all blocks in 5 minutes), 4) Test oscillation damping - rapid hashrate changes should produce smooth difficulty curve, 5) Test boundary conditions: difficulty at power_limit, minimum difficulty (if testnet allows), 6) Test the full integration: given blocks 0-27, verify calculated difficulty for block 28 matches actual chain. Use zcash testnet block explorer (e.g., https://explorer.testnet.z.cash/) to obtain real test data.",
             "status": "pending",
-            "testStrategy": "All tests must pass against real chain data. Specifically verify: 1) At least 10 consecutive difficulty calculations match testnet, 2) Edge case handling doesn't panic, 3) Performance is acceptable (single calculation < 1ms). Consider property-based testing: difficulty should never exceed power_limit, should always be positive, clamping bounds should be respected."
+            "testStrategy": "All tests must pass against real chain data. Specifically verify: 1) At least 10 consecutive difficulty calculations match testnet, 2) Edge case handling doesn't panic, 3) Performance is acceptable (single calculation < 1ms). Consider property-based testing: difficulty should never exceed power_limit, should always be positive, clamping bounds should be respected.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Create zcash_spv Light Block and SPV Header Modules",
         "description": "Create the light_block.move and block_header.move (SPV header verification) modules adapted for Zcash, integrating Equihash verification instead of SHA256d PoW.",
         "details": "Create `zcash_spv/sources/light_block.move` (similar structure to bitcoin_spv):\n\n```move\npublic struct LightBlock has store, copy, drop {\n    height: u64,\n    header: BlockHeader,\n    chain_work: u256,\n}\n```\n\nCreate `zcash_spv/sources/block_header.move`:\n\n```move\nuse zcash_lib::header::BlockHeader;\nuse zcash_lib::equihash;\n\n/// For Zcash, pow_check verifies Equihash solution\npublic fun pow_check(header: &BlockHeader) {\n    // Get header bytes (140 bytes without solution)\n    let header_bytes = header.header_bytes();\n    let nonce = header.nonce();\n    let solution = header.solution();\n    \n    // Verify Equihash solution\n    assert!(equihash::verify(&header_bytes, &nonce, &solution), EPoW);\n    \n    // Also verify block hash meets difficulty target\n    let target = bits_to_target(header.bits());\n    assert!(target >= to_u256(header.block_hash()), EPoW);\n}\n```\n\nKey difference from Bitcoin: Equihash verification replaces simple SHA256d < target check.",
         "testStrategy": "Test pow_check with valid and invalid Equihash solutions. Test with real testnet block headers. Verify both Equihash validation and difficulty target check work correctly.",
         "priority": "high",
         "dependencies": [
-          1,
-          2,
-          3
+          "1",
+          "2",
+          "3"
         ],
         "status": "pending",
         "subtasks": [
@@ -190,7 +203,8 @@
             "dependencies": [],
             "details": "Copy the 36-line bitcoin_spv/sources/light_block.move structure to zcash_spv/sources/light_block.move. Change module declaration from `bitcoin_spv::light_block` to `zcash_spv::light_block`. Update the import from `use bitcoin_lib::header::BlockHeader` to `use zcash_lib::header::BlockHeader`. The LightBlock struct remains identical with `height: u64`, `chain_work: u256`, and `header: BlockHeader` fields. Keep all accessor functions (new_light_block, height, header, chain_work) unchanged. Ensure the zcash_spv/Move.toml includes dependency on zcash_lib.",
             "status": "pending",
-            "testStrategy": "Verify module compiles with `sui move build` in zcash_spv directory. Create unit test that constructs a LightBlock with a mock Zcash BlockHeader and verifies all accessor functions return correct values."
+            "testStrategy": "Verify module compiles with `sui move build` in zcash_spv directory. Create unit test that constructs a LightBlock with a mock Zcash BlockHeader and verifies all accessor functions return correct values.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -201,7 +215,8 @@
             ],
             "details": "Create zcash_spv/sources/block_header.move module. Import `zcash_lib::header::BlockHeader` and `zcash_lib::equihash`. Copy the target() and calc_work() functions from bitcoin_spv/sources/header.move - these use bits_to_target which works identically for Zcash (same compact difficulty format). Create a zcash_spv/sources/zcash_math.move with the bits_to_target() and to_u256() functions from btc_math.move (same logic applies). Implement pow_check() to: 1) Extract header bytes, nonce, and solution from BlockHeader, 2) Call `equihash::verify(&header_bytes, &nonce, &solution)` and assert success, 3) Verify block hash meets difficulty target using `target >= to_u256(header.block_hash())`. Define EPoW error constant for failed PoW checks.",
             "status": "pending",
-            "testStrategy": "Test pow_check with valid Zcash testnet block headers that have correct Equihash solutions - should pass. Test with invalid solutions (modified solution bytes) - should abort with EPoW. Test with valid solution but block hash not meeting target - should abort. Verify calc_work computation matches expected values for known difficulty targets."
+            "testStrategy": "Test pow_check with valid Zcash testnet block headers that have correct Equihash solutions - should pass. Test with invalid solutions (modified solution bytes) - should abort with EPoW. Test with valid solution but block hash not meeting target - should abort. Verify calc_work computation matches expected values for known difficulty targets.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -210,20 +225,21 @@
             "dependencies": [],
             "details": "Create zcash_spv/sources/zcash_math.move by adapting bitcoin_spv/sources/btc_math.move. The difficulty encoding format is identical between Bitcoin and Zcash (compact 4-byte representation). Copy: 1) to_u256() - converts 32-byte little-endian to u256, 2) bits_to_target() - converts compact bits to full target u256, 3) target_to_bits() - converts target u256 to compact bits, 4) Helper functions bytes_of() and get_last_32_bits(). Update module name to `zcash_spv::zcash_math`. These functions are used by block_header.move for difficulty verification and by light_client.move for work calculation. Add corresponding tests from btc_math.move.",
             "status": "pending",
-            "testStrategy": "Copy and adapt tests from btc_math.move: test bytes_of, get_last_32_bits, bits_to_target and target_to_bits with Bitcoin test vectors (format is identical). Add Zcash-specific test vectors using known Zcash testnet block difficulty values to ensure bits_to_target correctly decodes Zcash difficulty targets."
+            "testStrategy": "Copy and adapt tests from btc_math.move: test bytes_of, get_last_32_bits, bits_to_target and target_to_bits with Bitcoin test vectors (format is identical). Add Zcash-specific test vectors using known Zcash testnet block difficulty values to ensure bits_to_target correctly decodes Zcash difficulty targets.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Implement Zcash Light Client Core",
         "description": "Create the main light_client.move module for Zcash SPV with DigiShield difficulty adjustment, Equihash verification, and proper chain management adapted from the Bitcoin implementation.",
         "details": "Create `zcash_spv/sources/light_client.move` adapting from `bitcoin_spv/sources/light_client.move`:\n\nKey changes:\n1. Import Zcash-specific modules instead of Bitcoin\n2. Replace `calc_next_required_difficulty` with DigiShield algorithm:\n```move\npublic fun calc_next_required_difficulty(lc: &LightClient, parent_block: &LightBlock): u32 {\n    let params = lc.params();\n    \n    // DigiShield adjusts every block\n    let averaging_window = params.averaging_window();\n    \n    // Get blocks for averaging\n    let mut avg_target: u256 = 0;\n    let mut i = 0;\n    while (i < averaging_window) {\n        let block = lc.relative_ancestor(parent_block, i);\n        avg_target = avg_target + bits_to_target(block.header().bits());\n        i = i + 1;\n    };\n    avg_target = avg_target / (averaging_window as u256);\n    \n    // Calculate median times\n    let median_time_past = calc_median_time(lc, parent_block);\n    let first_block = lc.relative_ancestor(parent_block, averaging_window);\n    let median_time_first = calc_median_time(lc, first_block);\n    \n    difficulty::calc_next_difficulty(params, avg_target, median_time_past, median_time_first)\n}\n```\n3. Update `insert_header` to use Zcash pow_check\n4. Adjust median time calculation (same 11-block median)",
         "testStrategy": "Integration tests with sequences of Zcash testnet blocks. Test chain extension, fork handling, difficulty validation. Verify Equihash solutions are checked on header insertion.",
         "priority": "high",
         "dependencies": [
-          3,
-          4
+          "3",
+          "4"
         ],
         "status": "pending",
         "subtasks": [
@@ -234,7 +250,8 @@
             "dependencies": [],
             "details": "Create `zcash_spv/sources/light_client.move` starting from the bitcoin_spv version. Key changes:\n1. Module declaration: `module zcash_spv::light_client`\n2. Update imports:\n   - `use zcash_lib::header::BlockHeader` instead of bitcoin_lib\n   - `use zcash_spv::block_header::{calc_work, pow_check, target}` instead of bitcoin_spv\n   - `use zcash_spv::btc_math::target_to_bits` (or equivalent zcash_spv module)\n   - `use zcash_spv::light_block::{LightBlock, new_light_block}`\n   - `use zcash_spv::merkle_tree::verify_merkle_proof`\n   - `use zcash_spv::params::{Self, Params, is_correct_init_height}`\n3. Keep the LightClient struct identical:\n   - id: UID, version: u32, params: Params, head_height: u64, head_hash: vector<u8>\n   - light_block_by_hash: Table<vector<u8>, LightBlock>\n   - block_hash_by_height: Table<u64, vector<u8>>\n   - confirmation_depth: u64\n4. Copy all error constants, events (NewLightClientEvent, InsertedHeadersEvent, ForkBeyondFinalityEvent), and VERSION constant\n5. Copy view functions: head_height, head_hash, verify_blocks, head, finalized_height, params, client_id, exist, get_light_block_by_hash, get_block_hash_by_height, get_light_block_by_height",
             "status": "pending",
-            "testStrategy": "Verify the module compiles without errors. Test that LightClient struct can be instantiated. Verify all imported modules are correctly referenced from zcash_spv and zcash_lib packages."
+            "testStrategy": "Verify the module compiles without errors. Test that LightClient struct can be instantiated. Verify all imported modules are correctly referenced from zcash_spv and zcash_lib packages.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -245,7 +262,8 @@
             ],
             "details": "Replace the Bitcoin retarget algorithm in calc_next_required_difficulty:\n```move\npublic fun calc_next_required_difficulty(lc: &LightClient, parent_block: &LightBlock): u32 {\n    let params = lc.params();\n    \n    // DigiShield adjusts every block (not just at retarget boundaries)\n    if (params.pow_no_retargeting() || parent_block.height() == 0) {\n        return params.power_limit_bits()\n    };\n    \n    let averaging_window = params.averaging_window(); // 17 for Zcash\n    \n    // Need enough blocks for averaging window\n    if (parent_block.height() < averaging_window) {\n        return parent_block.header().bits()\n    };\n    \n    // Compute average target over the averaging window\n    let mut avg_target: u256 = 0;\n    let mut i = 0;\n    while (i < averaging_window) {\n        let block = lc.relative_ancestor(parent_block, i);\n        avg_target = avg_target + block.header().target();\n        i = i + 1;\n    };\n    avg_target = avg_target / (averaging_window as u256);\n    \n    // Calculate median timestamps for timespan\n    let median_time_past = calc_median_time(lc, parent_block);\n    let first_block = lc.relative_ancestor(parent_block, averaging_window);\n    let median_time_first = calc_median_time(lc, first_block);\n    \n    // Use zcash_spv::difficulty module for final calculation\n    difficulty::calc_next_difficulty(params, avg_target, median_time_past, median_time_first)\n}\n```\nThis differs from Bitcoin which only adjusts every 2016 blocks. DigiShield adjusts every block to prevent difficulty oscillation attacks.",
             "status": "pending",
-            "testStrategy": "Unit tests with known Zcash testnet block sequences. Verify difficulty adjustments match real chain data for consecutive blocks. Test the averaging calculation produces correct results. Test edge case when chain has fewer than 17 blocks."
+            "testStrategy": "Unit tests with known Zcash testnet block sequences. Verify difficulty adjustments match real chain data for consecutive blocks. Test the averaging calculation produces correct results. Test edge case when chain has fewer than 17 blocks.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -256,7 +274,8 @@
             ],
             "details": "Update insert_header function to call Zcash pow_check:\n```move\npublic(package) fun insert_header(\n    lc: &mut LightClient,\n    parent: &LightBlock,\n    header: BlockHeader,\n): LightBlock {\n    let parent_header = parent.header();\n    \n    // Verify parent chain connection\n    assert!(parent_header.block_hash() == header.parent(), EWrongParentBlock);\n    \n    // Difficulty check using DigiShield\n    if (!lc.params().skip_difficulty_check()) {\n        let next_block_difficulty = lc.calc_next_required_difficulty(parent);\n        assert!(next_block_difficulty == header.bits(), EDifficultyNotMatch);\n    };\n    \n    // Median time check (same 11-block median as Bitcoin)\n    let median_time = lc.calc_past_median_time(parent);\n    assert!(header.timestamp() > median_time, ETimeTooOld);\n    \n    // Zcash PoW check - calls Equihash verification\n    // pow_check verifies: 1) Equihash solution is valid, 2) hash meets difficulty target\n    header.pow_check();\n    \n    // Update chain with new header\n    let next_height = parent.height() + 1;\n    let next_chain_work = parent.chain_work() + header.calc_work();\n    let next_light_block = new_light_block(next_height, header, next_chain_work);\n    \n    lc.append_block(next_light_block);\n    next_light_block\n}\n```\nThe zcash_spv::block_header::pow_check function calls zcash_lib::equihash::verify() internally, handling the 140-byte header (without solution) and the Equihash solution separately.",
             "status": "pending",
-            "testStrategy": "Test with valid Zcash testnet block headers that have valid Equihash solutions. Test rejection of headers with invalid Equihash solutions. Test that difficulty target is also verified in addition to Equihash validity."
+            "testStrategy": "Test with valid Zcash testnet block headers that have valid Equihash solutions. Test rejection of headers with invalid Equihash solutions. Test that difficulty target is also verified in addition to Equihash validity.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -267,7 +286,8 @@
             ],
             "details": "Implement median time functions for Zcash:\n```move\n/// Calculate median time of past 11 blocks for timestamp validation\n/// Same logic as Bitcoin - used to prevent timestamp manipulation\nfun calc_past_median_time(lc: &LightClient, lb: &LightBlock): u32 {\n    let median_time_blocks = 11;\n    let mut timestamps = vector[];\n    let mut i = 0;\n    let mut prev_lb = lb;\n    while (i < median_time_blocks) {\n        timestamps.push_back(prev_lb.header().timestamp());\n        if (!lc.exist(prev_lb.header().parent())) {\n            break\n        };\n        prev_lb = lc.relative_ancestor(prev_lb, 1);\n        i = i + 1;\n    };\n    let size = timestamps.length();\n    nth_element(&mut timestamps, size / 2)\n}\n\n/// Calculate median time for DigiShield timespan calculation\n/// Used at both endpoints of the averaging window\nfun calc_median_time(lc: &LightClient, lb: &LightBlock): u64 {\n    // DigiShield uses median_time_span (typically 11) for stability\n    let median_time_span = lc.params().median_time_span();\n    let mut timestamps = vector[];\n    let mut i = 0;\n    let mut prev_lb = lb;\n    while (i < median_time_span && lc.exist(prev_lb.header().parent())) {\n        timestamps.push_back(prev_lb.header().timestamp() as u64);\n        prev_lb = lc.relative_ancestor(prev_lb, 1);\n        i = i + 1;\n    };\n    let size = timestamps.length();\n    nth_element_u64(&mut timestamps, size / 2)\n}\n```\nNote: calc_median_time returns u64 for DigiShield timespan math, while calc_past_median_time returns u32 for direct timestamp comparison.",
             "status": "pending",
-            "testStrategy": "Test median calculation with known block sequences. Verify the 11-block window is correctly traversed. Test edge cases: chain shorter than 11 blocks, genesis block handling. Compare results with actual Zcash testnet median times."
+            "testStrategy": "Test median calculation with known block sequences. Verify the 11-block window is correctly traversed. Test edge cases: chain shorter than 11 blocks, genesis block handling. Compare results with actual Zcash testnet median times.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -278,7 +298,8 @@
             ],
             "details": "Copy and adapt navigation helper functions:\n```move\n/// Get ancestor block at given distance from current block\n/// Critical for DigiShield's 17-block averaging window\npublic fun relative_ancestor(lc: &LightClient, lb: &LightBlock, distance: u64): &LightBlock {\n    assert!(lc.version == VERSION, EVersionMismatch);\n    let ancestor_height = lb.height() - distance;\n    let ancestor_block_hash = lc.get_block_hash_by_height(ancestor_height);\n    lc.get_light_block_by_hash(ancestor_block_hash)\n}\n\n/// Verify transaction inclusion in block (copy from Bitcoin)\npublic fun verify_tx(\n    lc: &LightClient,\n    height: u64,\n    tx_id: vector<u8>,\n    proof: vector<vector<u8>>,\n    tx_index: u64,\n): bool {\n    // Same logic as Bitcoin SPV\n}\n\n/// Helper to find nth element (median finding)\n/// Import from zcash_spv::utils or copy\nfun nth_element<T: copy + drop>(v: &mut vector<T>, n: u64): T\n\n/// u64 variant for DigiShield timespan calculation\nfun nth_element_u64(v: &mut vector<u64>, n: u64): u64\n```\nAlso include block_hash_by_height lookups and chain traversal functions. Ensure all height calculations handle the averaging window correctly.",
             "status": "pending",
-            "testStrategy": "Test relative_ancestor at various distances (0, 1, 16, 17). Test boundary conditions when distance exceeds chain length. Verify correct block is returned by comparing block hashes. Test nth_element with various array sizes."
+            "testStrategy": "Test relative_ancestor at various distances (0, 1, 16, 17). Test boundary conditions when distance exceeds chain length. Verify correct block is returned by comparing block hashes. Test nth_element with various array sizes.",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -290,19 +311,20 @@
             ],
             "details": "Adapt initialization functions for Zcash:\n```move\n/// Create new Zcash light client\npublic fun new_light_client(\n    params: Params,\n    start_height: u64,\n    trusted_headers: vector<BlockHeader>,\n    parent_chain_work: u256,\n    confirmation_depth: u64,\n    ctx: &mut TxContext,\n): LightClient {\n    // Same structure as Bitcoin, but with Zcash params\n    let mut lc = LightClient { ... };\n    // Process trusted headers using Zcash header format\n    // Note: Zcash headers are 1487 bytes (140 + solution), not 80 bytes\n    ...\n}\n\n/// Initialize Zcash light client (public entry)\npublic fun initialize_light_client(\n    network: u8,\n    start_height: u64,\n    trusted_headers: vector<BlockHeader>,\n    parent_chain_work: u256,\n    confirmation_depth: u64,\n    ctx: &mut TxContext,\n) {\n    let params = match (network) {\n        0 => params::mainnet(),  // Zcash mainnet (n=200, k=9)\n        1 => params::testnet(),  // Zcash testnet (n=144, k=5)\n        _ => params::regtest(),\n    };\n    \n    // DigiShield has no retarget boundary requirement\n    // (Unlike Bitcoin's 2016-block requirement)\n    // Any start_height is valid\n    \n    let lc = new_light_client(...);\n    event::emit(NewLightClientEvent { light_client_id: object::id(&lc) });\n    transfer::share_object(lc);\n}\n```\nRemove or modify is_correct_init_height check since DigiShield adjusts every block. Ensure Zcash-specific parameters (averaging_window=17, median_time_span=11, target_spacing=75) are used.",
             "status": "pending",
-            "testStrategy": "Test initialization with various start heights (not just multiples of retarget period). Test with Zcash testnet and mainnet parameters. Verify events are emitted correctly. Test initialization with empty and non-empty trusted header lists."
+            "testStrategy": "Test initialization with various start heights (not just multiples of retarget period). Test with Zcash testnet and mainnet parameters. Verify events are emitted correctly. Test initialization with empty and non-empty trusted header lists.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Implement Zcash Transaction Structure (v4 Transparent)",
         "description": "Create zcash_lib/sources/tx.move for Zcash v4 transparent transactions, adding nExpiryHeight, versionGroupId fields and removing SegWit markers.",
         "details": "Create `zcash_lib/sources/tx.move`:\n\n```move\n/// Zcash v4 transparent transaction (no shielded support)\npublic struct Transaction has copy, drop, store {\n    version: u32,                 // 4 bytes, must be 4 | (1 << 31) for overwinter+\n    version_group_id: u32,        // 4 bytes (0x892F2085 for Sapling)\n    inputs: vector<Input>,\n    outputs: vector<Output>,\n    locktime: u32,               // 4 bytes\n    expiry_height: u32,          // 4 bytes (Zcash-specific)\n    tx_id: vector<u8>,           // BLAKE2b-256 with personalization\n}\n\nconst SAPLING_VERSION_GROUP_ID: u32 = 0x892F2085;\nconst SAPLING_TX_VERSION: u32 = 0x80000004; // Version 4 with overwinter flag\n\n/// Zcash uses BLAKE2b-256 with personalization \"ZcashTxHash\" for tx_id\npublic fun compute_tx_id(tx: &Transaction): vector<u8> {\n    let mut preimage = vector[];\n    // Serialize: version || version_group_id || inputs || outputs || locktime || expiry_height\n    // ...\n    blake2b::hash_with_personal(&preimage, b\"ZcashTxHash\\x00\\x00\\x00\\x00\\x00\")\n}\n```\n\nReuse Input/Output structures from bitcoin_lib (same P2PKH/P2SH format).\nNote: No SegWit in Zcash - shielded transactions use different mechanism.",
         "testStrategy": "Test transaction parsing with real Zcash testnet transparent transactions. Verify tx_id computation with BLAKE2b matches known values. Test serialization/deserialization round-trip.",
         "priority": "medium",
         "dependencies": [
-          1
+          "1"
         ],
         "status": "pending",
         "subtasks": [
@@ -313,7 +335,8 @@
             "dependencies": [],
             "details": "Reference ZIP 243 (https://zips.z.cash/zip-0243) for Zcash transaction format. Key differences from Bitcoin to document:\n\n1. **Version field**: 4 bytes, but includes overwinter flag. For Sapling: version = 4 | (1 << 31) = 0x80000004 (stored as little-endian: 04 00 00 80)\n\n2. **version_group_id**: 4 additional bytes after version (not in Bitcoin). For Sapling: 0x892F2085 (little-endian: 85 20 2F 89)\n\n3. **expiry_height**: 4 bytes after locktime (Zcash-specific). Block height after which transaction expires (0 = no expiry)\n\n4. **No SegWit**: Zcash does NOT use marker (0x00) and flag (0x01) bytes. Shielded transactions use different mechanism entirely.\n\n5. **tx_id computation**: Uses BLAKE2b-256 with 16-byte personalization 'ZcashTxHash\\x00\\x00\\x00\\x00\\x00' instead of SHA256d\n\nSerialization order for v4 transparent-only:\nversion (4) || version_group_id (4) || inputs || outputs || locktime (4) || expiry_height (4)\n\nNote: For full v4 transactions, joinsplit/shielded sections would follow expiry_height but are not needed for transparent-only support.",
             "status": "pending",
-            "testStrategy": "Create a reference document comparing Bitcoin and Zcash v4 transaction formats. Verify understanding by examining real Zcash testnet transparent transactions from block explorers."
+            "testStrategy": "Create a reference document comparing Bitcoin and Zcash v4 transaction formats. Verify understanding by examining real Zcash testnet transparent transactions from block explorers.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -324,7 +347,8 @@
             ],
             "details": "Create `zcash_lib/sources/tx.move` with:\n\n```move\nmodule zcash_lib::tx;\n\nuse bitcoin_lib::input::{Self, Input};\nuse bitcoin_lib::output::{Self, Output};\nuse bitcoin_lib::reader::Reader;\n\n/// Zcash v4 transparent transaction (no shielded support)\npublic struct Transaction has copy, drop, store {\n    version: u32,                 // 4 bytes, includes overwinter flag\n    version_group_id: u32,        // 4 bytes (0x892F2085 for Sapling)\n    inputs: vector<Input>,        // Reuse from bitcoin_lib\n    outputs: vector<Output>,      // Reuse from bitcoin_lib\n    locktime: u32,               // 4 bytes\n    expiry_height: u32,          // 4 bytes (Zcash-specific)\n    tx_id: vector<u8>,           // 32 bytes, computed with BLAKE2b-256\n}\n\n// Constants\nconst SAPLING_VERSION_GROUP_ID: u32 = 0x892F2085;\nconst SAPLING_TX_VERSION: u32 = 0x80000004; // Version 4 with overwinter flag\nconst OVERWINTER_FLAG: u32 = 0x80000000;    // 1 << 31\n```\n\nAdd constructor, accessor functions (version(), inputs(), outputs(), locktime(), expiry_height(), tx_id(), version_group_id()), and validation functions (is_sapling(), is_overwinter()).\n\nUpdate zcash_lib/Move.toml to add bitcoin_lib as a dependency for reusing Input/Output structs.",
             "status": "pending",
-            "testStrategy": "Unit tests verifying struct creation with valid Sapling constants. Test accessor functions return correct values. Verify version flag checking functions work correctly."
+            "testStrategy": "Unit tests verifying struct creation with valid Sapling constants. Test accessor functions return correct values. Verify version flag checking functions work correctly.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -335,7 +359,8 @@
             ],
             "details": "Adapt `bitcoin_lib::tx::parse_tx` (lines 117-186) with these changes:\n\n```move\npublic fun deserialize(r: &mut Reader): Transaction {\n    let tx = parse_tx(r);\n    assert!(r.end_stream(), ETxReaderHasRemainingData);\n    tx\n}\n\npublic(package) fun parse_tx(r: &mut Reader): Transaction {\n    // Read version as u32 (includes overwinter flag)\n    let version_bytes = r.read(4);\n    let version = le_bytes_to_u32(version_bytes);\n    \n    // Read version_group_id (Zcash-specific, 4 bytes)\n    let vgid_bytes = r.read(4);\n    let version_group_id = le_bytes_to_u32(vgid_bytes);\n    \n    // NO SegWit marker/flag check - Zcash doesn't use SegWit\n    \n    // Parse inputs (reuse bitcoin_lib::input::decode)\n    let number_inputs = r.read_compact_size();\n    let mut inputs = vector[];\n    number_inputs.do!(|_| inputs.push_back(input::decode(r)));\n    \n    // Parse outputs (reuse bitcoin_lib::output::decode)\n    let number_outputs = r.read_compact_size();\n    let mut outputs = vector[];\n    number_outputs.do!(|_| outputs.push_back(output::decode(r)));\n    \n    // NO witness data section\n    \n    let locktime = le_bytes_to_u32(r.read(4));\n    let expiry_height = le_bytes_to_u32(r.read(4)); // Zcash-specific\n    \n    // Compute tx_id using BLAKE2b-256 (implemented in subtask 4)\n    let tx_id = compute_tx_id_internal(...);\n    \n    Transaction { version, version_group_id, inputs, outputs, locktime, expiry_height, tx_id }\n}\n```\n\nAdd helper function `le_bytes_to_u32` and implement serialization function for round-trip testing.",
             "status": "pending",
-            "testStrategy": "Test deserialization with real Zcash testnet transparent transaction hex data. Verify all fields are parsed correctly. Test serialization/deserialization round-trip produces identical bytes."
+            "testStrategy": "Test deserialization with real Zcash testnet transparent transaction hex data. Verify all fields are parsed correctly. Test serialization/deserialization round-trip produces identical bytes.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -347,19 +372,20 @@
             ],
             "details": "Implement tx_id computation using existing `zcash_lib::blake2b::hash_with_personal`:\n\n```move\nuse zcash_lib::blake2b;\n\n/// Zcash tx_id personalization: 'ZcashTxHash' padded to 16 bytes\nconst TX_HASH_PERSONAL: vector<u8> = b\"ZcashTxHash\\x00\\x00\\x00\\x00\\x00\"; // 16 bytes\n\n/// Compute Zcash transaction ID using BLAKE2b-256 with personalization\npublic fun compute_tx_id(tx: &Transaction): vector<u8> {\n    let preimage = serialize_for_txid(tx);\n    blake2b::hash_with_personal(&preimage, TX_HASH_PERSONAL)\n}\n\n/// Serialize transaction for tx_id computation\n/// Order: version || version_group_id || inputs || outputs || locktime || expiry_height\nfun serialize_for_txid(tx: &Transaction): vector<u8> {\n    let mut raw = vector[];\n    raw.append(u32_to_le_bytes(tx.version));\n    raw.append(u32_to_le_bytes(tx.version_group_id));\n    raw.append(u64_to_varint_bytes(tx.inputs.length()));\n    tx.inputs.do_ref!(|inp| raw.append(inp.encode()));\n    raw.append(u64_to_varint_bytes(tx.outputs.length()));\n    tx.outputs.do_ref!(|out| raw.append(out.encode()));\n    raw.append(u32_to_le_bytes(tx.locktime));\n    raw.append(u32_to_le_bytes(tx.expiry_height));\n    raw\n}\n```\n\nAdd helper function `u32_to_le_bytes()` if not already available in bitcoin_lib::encoding.\n\nNote: For full v4 transactions with shielded data, additional fields would be included in the preimage, but for transparent-only support, this covers all needed fields.",
             "status": "pending",
-            "testStrategy": "Test with known Zcash testnet transparent transactions where tx_id is known. Verify BLAKE2b hash with 'ZcashTxHash\\x00\\x00\\x00\\x00\\x00' personalization produces correct 32-byte tx_id. Compare against block explorer data."
+            "testStrategy": "Test with known Zcash testnet transparent transactions where tx_id is known. Verify BLAKE2b hash with 'ZcashTxHash\\x00\\x00\\x00\\x00\\x00' personalization produces correct 32-byte tx_id. Compare against block explorer data.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Add Merkle Tree and Utility Modules to zcash_spv",
         "description": "Copy and adapt merkle_tree.move, utils.move, and btc_math.move from bitcoin_spv to zcash_spv with any Zcash-specific modifications.",
         "details": "Copy the following modules from `bitcoin_spv` to `zcash_spv`:\n\n1. `merkle_tree.move` - No changes needed (Zcash uses same SHA256d merkle trees for transparent txs)\n\n2. `utils.move` - Copy as-is (nth_element and other helpers)\n\n3. `btc_math.move` → rename to `zcash_math.move`:\n   - `bits_to_target()` - Same algorithm\n   - `target_to_bits()` - Same algorithm  \n   - `to_u256()` - Same algorithm\n   - Update module name references\n\nUpdate `zcash_spv/Move.toml` to include these modules.\n\nNote: For a future enhancement, Zcash's commitment trees (for shielded txs) use different structure, but transparent tx merkle proofs work the same as Bitcoin.",
         "testStrategy": "Verify merkle proof verification works with Zcash testnet blocks. Unit test math functions with known values. Test utils functions.",
         "priority": "medium",
         "dependencies": [
-          2
+          "2"
         ],
         "status": "pending",
         "subtasks": [
@@ -370,7 +396,8 @@
             "dependencies": [],
             "details": "Copy bitcoin_spv/sources/merkle_tree.move to zcash_spv/sources/merkle_tree.move. Change module declaration from 'module bitcoin_spv::merkle_tree' to 'module zcash_spv::merkle_tree'. Update the import from 'use bitcoin_lib::crypto::hash256' to 'use zcash_lib::crypto::hash256'. No other changes needed as Zcash uses the same SHA256d merkle trees for transparent transactions.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' in zcash_spv directory to verify the module compiles. Test merkle proof verification with Zcash testnet block data."
+            "testStrategy": "Run 'sui move build' in zcash_spv directory to verify the module compiles. Test merkle proof verification with Zcash testnet block data.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -379,7 +406,8 @@
             "dependencies": [],
             "details": "Copy bitcoin_spv/sources/utils.move to zcash_spv/sources/utils.move. Change module declaration from 'module bitcoin_spv::utils' to 'module zcash_spv::utils'. The nth_element function and other helpers work identically for Zcash - no algorithm changes required.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' to verify compilation. Unit test nth_element function with sample data to confirm functionality preserved."
+            "testStrategy": "Run 'sui move build' to verify compilation. Unit test nth_element function with sample data to confirm functionality preserved.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -388,7 +416,8 @@
             "dependencies": [],
             "details": "Copy bitcoin_spv/sources/btc_math.move to zcash_spv/sources/zcash_math.move. Change module declaration from 'module bitcoin_spv::btc_math' to 'module zcash_spv::zcash_math'. All functions (to_u256, bits_to_target, target_to_bits, bytes_of, get_last_32_bits) remain unchanged as Zcash uses the same difficulty target encoding algorithm as Bitcoin.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' to verify compilation. Execute existing unit tests (bytes_of_happy_cases, get_last_32_bits_happy_cases) and add tests with known Zcash difficulty values."
+            "testStrategy": "Run 'sui move build' to verify compilation. Execute existing unit tests (bytes_of_happy_cases, get_last_32_bits_happy_cases) and add tests with known Zcash difficulty values.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -401,7 +430,8 @@
             ],
             "details": "Create zcash_spv/Move.toml with package name 'zcash_spv', edition '2024.beta', license 'MPL-2.0'. Add dependency on zcash_lib using local path '../zcash_lib'. Set addresses section with 'zcash_spv = \"0x0\"'. The modules (merkle_tree, utils, zcash_math) are automatically included from the sources/ directory.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' in zcash_spv directory to verify the manifest correctly references all modules and the zcash_lib dependency resolves properly."
+            "testStrategy": "Run 'sui move build' in zcash_spv directory to verify the manifest correctly references all modules and the zcash_lib dependency resolves properly.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -412,20 +442,21 @@
             ],
             "details": "Run 'sui move build' in zcash_spv directory to compile all modules. Run 'sui move test' to execute unit tests for zcash_math (bytes_of_happy_cases, get_last_32_bits_happy_cases). Verify no compilation errors or warnings. Check that all module references (zcash_lib::crypto::hash256) resolve correctly.",
             "status": "pending",
-            "testStrategy": "Execute 'sui move test' and verify all tests pass. Manually verify output shows merkle_tree, utils, and zcash_math modules are compiled without errors."
+            "testStrategy": "Execute 'sui move test' and verify all tests pass. Manually verify output shows merkle_tree, utils, and zcash_math modules are compiled without errors.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Create nZEC Package Structure",
         "description": "Create the nZEC package by adapting the nBTC package structure, updating dependencies to use zcash_lib and zcash_spv instead of bitcoin equivalents.",
         "details": "Create `nZEC/` directory with:\n\n1. `Move.toml`:\n```toml\n[package]\nname = \"nZEC\"\nedition = \"2024.beta\"\nlicense = \"MPL-2.0\"\n\n[dependencies]\nzcash_spv = {local = \"../zcash_spv\"}\nzcash_lib = {local = \"../zcash_lib\"}\n# ... ika dependencies same as nBTC\n\n[addresses]\nnzec = \"0x0\"\nzcash_lc = \"0x1001\"\n```\n\n2. Copy and adapt source files from nBTC:\n   - `nzec.move` (from nbtc.move) - Update imports, type names\n   - `config.move` - Same structure\n   - `storage.move` - Same structure\n   - `verify_payment.move` - Update to use Zcash light client\n   - `utxo.move` - Same structure (transparent UTXOs)\n   - `redeem_request.move` - Same structure\n   - `tx_composer.move` - Update for Zcash tx format\n\nKey changes:\n- Replace all `bitcoin_lib` imports with `zcash_lib`\n- Replace all `bitcoin_spv` imports with `zcash_spv`\n- Update type references (BlockHeader, Transaction, etc.)",
         "testStrategy": "Verify package compiles with Zcash dependencies. Test payment verification with Zcash testnet transactions. Adapt existing nBTC tests to work with nZEC.",
         "priority": "medium",
         "dependencies": [
-          5,
-          6
+          "5",
+          "6"
         ],
         "status": "pending",
         "subtasks": [
@@ -436,7 +467,8 @@
             "dependencies": [],
             "details": "Create nZEC/Move.toml with:\n- Package name 'nZEC', edition '2024.beta', license 'MPL-2.0'\n- Dependencies: zcash_spv = {local = '../zcash_spv'}, zcash_lib = {local = '../zcash_lib'}\n- Same ika dependencies as nBTC: ika_common, ika_dwallet_2pc_mpc, ika (git URLs with subdir and rev)\n- Addresses: nzec = '0x0', zcash_lc = '0x1001', fallback_addr = '0x1002', ika_coordinator = '0x1003'\n- Also create the nZEC/sources/ directory structure",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' in the nZEC directory to verify the manifest is valid and dependencies resolve correctly."
+            "testStrategy": "Run 'sui move build' in the nZEC directory to verify the manifest is valid and dependencies resolve correctly.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -447,7 +479,8 @@
             ],
             "details": "Perform the following changes:\n- Module: nbtc::nbtc → nzec::nzec\n- Imports: bitcoin_lib::reader → zcash_lib::reader, bitcoin_lib::tx → zcash_lib::tx, bitcoin_spv::light_client::LightClient → zcash_spv::light_client::LightClient\n- Type renames: NBTC → NZEC, NbtcContract → NzecContract, OpCap/AdminCap stay same\n- Event names: MintEvent stays (or NzecMintEvent), update references\n- Constants: Update SYMBOL to 'nZEC-v0.1', NAME to 'Native nZEC v0.1', DESCRIPTION to 'Native synthetic ZEC', ICON_URL to appropriate Zcash icon\n- Module references: nbtc::config → nzec::config, nbtc::nbtc_utxo → nzec::nzec_utxo, etc.\n- Address references: @bitcoin_lc → @zcash_lc",
             "status": "pending",
-            "testStrategy": "Verify the file compiles with 'sui move build' after all dependent modules are created. Check all imports resolve and types are correctly renamed."
+            "testStrategy": "Verify the file compiles with 'sui move build' after all dependent modules are created. Check all imports resolve and types are correctly renamed.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -458,7 +491,8 @@
             ],
             "details": "Perform the following changes:\n- Module: nbtc::verify_payment → nzec::verify_payment\n- Imports: bitcoin_lib::tx::Transaction → zcash_lib::tx::Transaction, bitcoin_spv::light_client::LightClient → zcash_spv::light_client::LightClient\n- Function signature stays the same: verify_payment(lc: &LightClient, height: u64, proof: vector<vector<u8>>, tx_index: u64, transaction: &Transaction, receiver_script_pubkey: vector<u8>)\n- The lc.verify_tx call uses the Zcash LightClient which verifies using Equihash PoW instead of SHA256d\n- Transaction output iteration logic remains the same since Zcash transparent outputs follow similar structure",
             "status": "pending",
-            "testStrategy": "Compile with 'sui move build'. Test with Zcash testnet transaction data once test vectors (Task 9) are available."
+            "testStrategy": "Compile with 'sui move build'. Test with Zcash testnet transaction data once test vectors (Task 9) are available.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -469,7 +503,8 @@
             ],
             "details": "For each module:\n\n1. config.move (53 lines):\n   - Module: nbtc::config → nzec::config\n   - Struct Config remains structurally identical (light_client_id refers to Zcash LC)\n\n2. storage.move (152 lines):\n   - Module: nbtc::storage → nzec::storage\n   - DWalletMetadata and Storage structs remain identical\n   - Import: ika_dwallet_2pc_mpc stays the same\n\n3. utxo.move (157 lines):\n   - Module: nbtc::nbtc_utxo → nzec::nzec_utxo\n   - Utxo struct remains identical (transparent Zcash UTXOs follow same structure)\n   - Ranking logic stays the same\n\n4. redeem_request.move (338 lines):\n   - Module: nbtc::redeem_request → nzec::redeem_request\n   - Imports: bitcoin_lib::encoding → zcash_lib::encoding, bitcoin_lib::sighash → zcash_lib::sighash, bitcoin_lib::tx → zcash_lib::tx, bitcoin_lib::vector_utils → zcash_lib::vector_utils\n   - nbtc::nbtc_utxo → nzec::nzec_utxo, nbtc::storage → nzec::storage, nbtc::tx_composer → nzec::tx_composer\n   - RedeemRequest struct and status enums remain structurally identical",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' to verify all modules compile. Ensure struct layouts are compatible with the main nzec.move module."
+            "testStrategy": "Run 'sui move build' to verify all modules compile. Ensure struct layouts are compatible with the main nzec.move module.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -481,20 +516,21 @@
             ],
             "details": "Key Zcash transaction differences requiring adaptation:\n\n1. Transaction structure changes:\n   - version: i32 (can be negative for overwinter, includes version_group_id concept)\n   - fOverwintered flag (bit 31 of version)\n   - nVersionGroupId: u32 (identifies transaction type/epoch)\n   - nExpiryHeight: u32 (block height after which tx invalid)\n   - valueBalance: i64 (Sapling value balance, 0 for transparent-only)\n\n2. compose_withdraw_tx changes:\n   - Use zcash_lib::tx::new_unsign_transparent_tx (need to implement or adapt)\n   - Include version_group_id parameter (0x892F2085 for Sapling)\n   - Include expiry_height parameter (typically current_height + 40 or 0 for no expiry)\n   - Input/output structure similar but tx serialization differs\n\n3. Transaction ID computation:\n   - Zcash v4+: BLAKE2b-256 with 'ZcashTxHash' personalization of tx bytes\n   - Different from Bitcoin's double-SHA256\n   - May need zcash_lib::tx module to expose tx_id() using BLAKE2b\n\n4. Signature hash differences:\n   - Zcash uses BLAKE2b-256 with 'ZcashSigHash' personalization\n   - BIP143-like but with different hash algorithm\n   - create_segwit_preimage equivalent needed for Zcash sighash\n\nNote: This requires zcash_lib to provide tx, encoding, sighash modules. If not yet implemented in zcash_lib, document what's needed.",
             "status": "pending",
-            "testStrategy": "Test compose_withdraw_tx with test vectors. Verify transaction serialization matches Zcash testnet format. Test sighash computation against known Zcash sighash test vectors. Verify tx_id computation with BLAKE2b matches expected block explorer results."
+            "testStrategy": "Test compose_withdraw_tx with test vectors. Verify transaction serialization matches Zcash testnet format. Test sighash computation against known Zcash sighash test vectors. Verify tx_id computation with BLAKE2b matches expected block explorer results.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Create Test Vectors from Zcash Testnet Blocks",
         "description": "Gather and create comprehensive test vectors from real Zcash testnet blocks including block headers, Equihash solutions, transactions, and merkle proofs for testing all components.",
         "details": "Create `zcash_spv/tests/test_vectors.move` with:\n\n1. Block header test vectors (from Zcash testnet RPC `getblock`):\n```move\n// Testnet block at height X\nconst TESTNET_BLOCK_HEADER: vector<u8> = x\"...\"; // 140 bytes\nconst TESTNET_BLOCK_NONCE: vector<u8> = x\"...\";  // 32 bytes  \nconst TESTNET_BLOCK_SOLUTION: vector<u8> = x\"...\"; // 100 bytes\nconst TESTNET_BLOCK_HASH: vector<u8> = x\"...\";   // 32 bytes\n```\n\n2. Transaction test vectors:\n```move\nconst TESTNET_TX_RAW: vector<u8> = x\"...\";\nconst TESTNET_TX_ID: vector<u8> = x\"...\";\n```\n\n3. Merkle proof test vectors\n\n4. Difficulty adjustment test vectors (sequence of blocks)\n\nUse Zcash testnet RPC or block explorer APIs:\n- `zcash-cli -testnet getblock <hash> 0` for raw blocks\n- Parse and extract components\n- Document block heights and hashes used\n\nCreate helper script (TypeScript/Python) to fetch and format test data.",
         "testStrategy": "N/A - This task creates test vectors. Vectors should be verified against Zcash testnet RPC to ensure accuracy.",
         "priority": "high",
         "dependencies": [
-          1,
-          4
+          "1",
+          "4"
         ],
         "status": "pending",
         "subtasks": [
@@ -505,7 +541,8 @@
             "dependencies": [],
             "details": "1. Test CipherScan API endpoints: GET /api/block/:height for block data, verify response format includes hash, merkleRoot, finalSaplingRoot, and transaction details.\n2. Set up GetBlock.io account if RPC access needed (JSON-RPC to port 18232 for testnet).\n3. Document RPC commands: `getblock <hash> 0` returns raw hex, `getblock <hash> 1` returns JSON with txids, `getblock <hash> 2` returns full tx details.\n4. Reference official zcash-test-vectors repo (https://github.com/zcash/zcash-test-vectors) and librustzcash test vectors for validation.\n5. Create .env.example with placeholders for API keys if needed.",
             "status": "pending",
-            "testStrategy": "Verify each API endpoint returns valid data by fetching a known testnet block (e.g., height 3667080) and confirming response structure matches expected Zcash block format."
+            "testStrategy": "Verify each API endpoint returns valid data by fetching a known testnet block (e.g., height 3667080) and confirming response structure matches expected Zcash block format.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -516,7 +553,8 @@
             ],
             "details": "Create `scripts/fetch_zcash_test_vectors.ts` (or .py) that:\n1. Fetches block at specified height via CipherScan API or RPC.\n2. Parses raw hex into components: version (4 bytes), previousblockhash (32 bytes), merkleroot (32 bytes), hashReserved/finalSaplingRoot (32 bytes), time (4 bytes), bits (4 bytes), nonce (32 bytes), solution (84 bytes for testnet).\n3. Computes expected block hash using BLAKE2b-256 of header bytes.\n4. Outputs Move constant declarations in format: `const TESTNET_BLOCK_HEADER: vector<u8> = x\"...\";`\n5. Fetches blocks at multiple heights (genesis, recent, blocks with interesting tx patterns).\n6. Validates parsed data by checking computed hash matches API-reported hash.",
             "status": "pending",
-            "testStrategy": "Run script against known testnet blocks and verify: (1) parsed header is exactly 140 bytes, (2) solution is 84 bytes, (3) computed BLAKE2b hash matches explorer-reported block hash."
+            "testStrategy": "Run script against known testnet blocks and verify: (1) parsed header is exactly 140 bytes, (2) solution is 84 bytes, (3) computed BLAKE2b hash matches explorer-reported block hash.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -527,7 +565,8 @@
             ],
             "details": "Create `zcash_spv/tests/test_vectors.move` with structure:\n```move\nmodule zcash_spv::test_vectors {\n    // Testnet block at height X (document source URL)\n    const TESTNET_BLOCK_1_HEADER: vector<u8> = x\"...\"; // 140 bytes\n    const TESTNET_BLOCK_1_NONCE: vector<u8> = x\"...\";  // 32 bytes  \n    const TESTNET_BLOCK_1_SOLUTION: vector<u8> = x\"...\"; // 84 bytes (testnet Equihash 144,5)\n    const TESTNET_BLOCK_1_HASH: vector<u8> = x\"...\";   // 32 bytes, little-endian\n    const TESTNET_BLOCK_1_HEIGHT: u64 = X;\n    const TESTNET_BLOCK_1_BITS: u32 = 0x...;\n    \n    // Additional blocks for difficulty adjustment testing (sequence of 17+ blocks)\n    // Include blocks at various heights: genesis, mid-chain, recent\n}\n```\nDocument block heights and explorer URLs as comments for reproducibility.",
             "status": "pending",
-            "testStrategy": "Write unit tests that verify: (1) header length is 140 bytes, (2) solution length is 84 bytes, (3) equihash::verify(header, nonce, solution) returns true, (4) computed block hash matches expected hash constant."
+            "testStrategy": "Write unit tests that verify: (1) header length is 140 bytes, (2) solution length is 84 bytes, (3) equihash::verify(header, nonce, solution) returns true, (4) computed block hash matches expected hash constant.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -538,22 +577,23 @@
             ],
             "details": "Add to `zcash_spv/tests/test_vectors.move`:\n```move\n// Transaction test vectors\nconst TESTNET_TX_1_RAW: vector<u8> = x\"...\";  // Full serialized tx\nconst TESTNET_TX_1_ID: vector<u8> = x\"...\";   // BLAKE2b-256 of tx (little-endian)\nconst TESTNET_TX_1_BLOCK_HEIGHT: u64 = X;\n\n// Merkle proof for tx inclusion verification\nconst TESTNET_TX_1_MERKLE_PROOF: vector<vector<u8>> = vector[\n    x\"...\", // sibling hash at level 0\n    x\"...\", // sibling hash at level 1\n    // ...\n];\nconst TESTNET_TX_1_MERKLE_INDEX: u64 = X;  // tx position in block\nconst TESTNET_TX_1_MERKLE_ROOT: vector<u8> = x\"...\";  // expected merkle root\n```\nInclude both transparent and shielded transaction examples. Fetch merkle proofs using `gettxoutproof` RPC or compute from block's full tx list.",
             "status": "pending",
-            "testStrategy": "Unit tests verifying: (1) tx::compute_txid(raw_tx) == expected_tx_id, (2) merkle::verify_proof(tx_id, proof, index, merkle_root) returns true, (3) merkle_root matches block header's merkle_root field."
+            "testStrategy": "Unit tests verifying: (1) tx::compute_txid(raw_tx) == expected_tx_id, (2) merkle::verify_proof(tx_id, proof, index, merkle_root) returns true, (3) merkle_root matches block header's merkle_root field.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Comprehensive Integration Tests and Validation",
         "description": "Create end-to-end integration tests for the complete Zcash light client, testing chain synchronization, fork handling, transaction verification, and nZEC minting/redemption flows.",
         "details": "Create comprehensive test suites:\n\n1. `zcash_spv/tests/light_client_tests.move`:\n```move\n#[test]\nfun test_initialize_with_testnet_headers() { ... }\n\n#[test]\nfun test_insert_headers_extends_chain() { ... }\n\n#[test]\nfun test_difficulty_adjustment_digishield() { ... }\n\n#[test]\nfun test_equihash_verification_on_insert() { ... }\n\n#[test]\nfun test_fork_handling() { ... }\n\n#[test]\nfun test_tx_verification_with_merkle_proof() { ... }\n```\n\n2. `zcash_spv/tests/equihash_tests.move`:\n   - Test with valid/invalid solutions from test vectors\n   - Test edge cases (malformed solutions, wrong length)\n\n3. `zcash_spv/tests/difficulty_tests.move`:\n   - Test DigiShield calculations with real chain data\n   - Test oscillation damping\n\n4. `nZEC/tests/e2e_tests.move`:\n   - Full mint flow with Zcash payment verification\n   - Redeem request handling\n\nRun: `sui move test` in each package directory.",
         "testStrategy": "All tests should pass with `sui move test`. Measure code coverage. Test both happy path and error cases. Verify gas costs are reasonable for Equihash verification.",
         "priority": "high",
         "dependencies": [
-          5,
-          7,
-          8,
-          9
+          "5",
+          "7",
+          "8",
+          "9"
         ],
         "status": "pending",
         "subtasks": [
@@ -564,7 +604,8 @@
             "dependencies": [],
             "details": "Create `zcash_spv/tests/light_client_tests.move` following the pattern from `bitcoin_spv/tests/light_client_tests.move`. Implement:\n\n1. **Setup Function**: `new_lc_for_test()` that creates a reusable Zcash test light client with pre-loaded testnet headers\n2. **test_initialize_with_testnet_headers()**: Initialize light client with Zcash testnet parameters (n=144, k=5, 75-second blocks)\n3. **test_insert_headers_extends_chain()**: Insert valid sequential headers and verify chain extension\n4. **test_difficulty_adjustment_digishield()**: Verify DigiShield difficulty calculation with real testnet block transitions\n5. **test_equihash_verification_on_insert()**: Ensure Equihash solutions are validated when headers are inserted\n6. **Negative tests**: `#[expected_failure]` tests for wrong parent block, invalid difficulty, duplicate headers\n\nUse test vectors from Task 9 (Zcash testnet blocks). Import from `zcash_lib::header`, `zcash_lib::equihash`, and `zcash_spv::params`.",
             "status": "pending",
-            "testStrategy": "Run `sui move test --filter light_client` in zcash_spv directory. All tests should pass. Verify at least 6 test functions exist covering initialization, chain extension, difficulty, and Equihash verification. Check both happy path and error cases are covered."
+            "testStrategy": "Run `sui move test --filter light_client` in zcash_spv directory. All tests should pass. Verify at least 6 test functions exist covering initialization, chain extension, difficulty, and Equihash verification. Check both happy path and error cases are covered.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -575,7 +616,8 @@
             ],
             "details": "Create `zcash_spv/tests/equihash_tests.move` extending the inline tests from `zcash_lib/sources/equihash.move`. Implement:\n\n1. **test_verify_valid_testnet_solution()**: Use real Zcash testnet block header and 84-byte compressed solution\n2. **test_verify_invalid_indices()**: Solution with indices that fail XOR tree validation\n3. **test_malformed_solution_wrong_length()**: Solutions with incorrect byte lengths (not 84 bytes)\n4. **test_duplicate_indices()**: Solutions containing duplicate index values\n5. **test_invalid_ordering()**: Solutions with indices not in proper tree ordering\n6. **test_expand_indices()**: Verify 84-byte solution correctly expands to 32 u32 indices\n7. **test_equihash_personalization()**: Verify \"ZcashPoW\" personalization with n=144, k=5 parameters\n8. **test_xor_tree_validation()**: Verify XOR collisions resolve to zero at final level\n\nTest vectors should include at least 3 valid testnet blocks and corresponding invalid variations. Use `#[expected_failure(abort_code = E_INVALID_SOLUTION)]` for negative tests.",
             "status": "pending",
-            "testStrategy": "Run `sui move test --filter equihash` in zcash_spv directory. All 8+ tests should pass. Verify coverage includes valid solutions, invalid indices, malformed data, and edge cases. Check error codes match expected abort codes from equihash.move."
+            "testStrategy": "Run `sui move test --filter equihash` in zcash_spv directory. All 8+ tests should pass. Verify coverage includes valid solutions, invalid indices, malformed data, and edge cases. Check error codes match expected abort codes from equihash.move.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -586,7 +628,8 @@
             ],
             "details": "Create `zcash_spv/tests/difficulty_tests.move` following the pattern from `bitcoin_spv/tests/difficulty_tests.move`. Implement:\n\n1. **test_digishield_retarget_increase()**: Test difficulty increase scenario with real testnet blocks\n2. **test_digishield_retarget_decrease()**: Test difficulty decrease with blocks faster than 75-second target\n3. **test_averaging_window_17_blocks()**: Verify 17-block averaging window calculation\n4. **test_oscillation_damping()**: Verify DigiShield dampens oscillation (max 8% change per block)\n5. **test_median_time_calculation()**: Test 11-block median time span calculation\n6. **test_bits_target_conversion()**: Roundtrip conversion between compact bits and u256 target\n7. **test_power_limit_clamping()**: Verify difficulty never goes below network minimum\n8. **test_real_chain_transitions()**: Use 20+ consecutive testnet blocks and verify each difficulty calculation matches expected\n\nKey DigiShield constants: averaging_window=17, target_spacing=75s, max_adjustment=8%. Use actual block timestamps and difficulty values from Zcash testnet.",
             "status": "pending",
-            "testStrategy": "Run `sui move test --filter difficulty` in zcash_spv directory. All tests should pass. Verify DigiShield calculations match expected values from Zcash specification. Test oscillation damping by checking difficulty changes are bounded to ±8% per block."
+            "testStrategy": "Run `sui move test --filter difficulty` in zcash_spv directory. All tests should pass. Verify DigiShield calculations match expected values from Zcash specification. Test oscillation damping by checking difficulty changes are bounded to ±8% per block.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -599,7 +642,8 @@
             ],
             "details": "Create `zcash_spv/tests/fork_tests.move` following the pattern from `bitcoin_spv/tests/fork_tests.move`. Implement:\n\n1. **test_fork_switch_to_higher_work()**: Create fork scenario where alternate chain has more cumulative work\n2. **test_fork_reject_lower_work()**: Verify shorter/lower-work fork is rejected\n3. **test_orphan_block_handling()**: Test blocks arriving out of order are handled correctly\n4. **test_chain_work_calculation()**: Verify cumulative chain work is computed correctly for Equihash difficulty\n5. **test_fork_at_checkpoint()**: Test fork behavior at checkpoint boundaries\n6. **test_multiple_competing_forks()**: Handle 3+ competing chain tips simultaneously\n7. **test_deep_reorganization()**: Test reorganization depth limits and behavior\n\nFork structure documentation in comments:\n```\nH0->H1->H2->H3->H4->H5->H6\n     |->F1->F2->F3->F4->F5->F6->F7 (higher work fork)\n```\n\nUse test vector headers with varying difficulties to create realistic fork scenarios. Verify `head()` returns correct tip after each operation.",
             "status": "pending",
-            "testStrategy": "Run `sui move test --filter fork` in zcash_spv directory. All tests should pass. Verify fork switching happens correctly when cumulative chain work exceeds current chain. Test that orphan blocks are properly queued and processed when parent arrives."
+            "testStrategy": "Run `sui move test --filter fork` in zcash_spv directory. All tests should pass. Verify fork switching happens correctly when cumulative chain work exceeds current chain. Test that orphan blocks are properly queued and processed when parent arrives.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -610,7 +654,8 @@
             ],
             "details": "Create `zcash_spv/tests/tx_verification_tests.move` following the pattern from `bitcoin_spv/tests/tx_verification_tests.move`. Implement:\n\n1. **sample_data()**: Helper function providing test vectors with tx_bytes, proof, height, tx_index\n2. **test_verify_valid_transaction()**: Verify valid transaction with correct Merkle proof\n3. **test_verify_wrong_tx_index()**: Transaction at wrong index should fail\n4. **test_verify_wrong_tx_id()**: Modified transaction hash should fail proof\n5. **test_verify_empty_proof()**: Empty Merkle proof should fail (unless single tx block)\n6. **test_verify_not_finalized()**: Transaction without sufficient confirmation depth should fail\n7. **test_verify_invalid_proof_element()**: Corrupted proof element should fail\n8. **test_merkle_proof_single_tx_block()**: Block with single transaction needs empty proof\n9. **test_merkle_proof_multiple_txs()**: Standard multi-transaction Merkle proof\n\nUse real Zcash testnet transactions with pre-computed Merkle proofs. Set confirmation_depth to realistic values (2-6 blocks). Test data should include block height, tx_id as 32-byte hash, Merkle proof as vector of 32-byte siblings.",
             "status": "pending",
-            "testStrategy": "Run `sui move test --filter tx_verification` in zcash_spv directory. All tests should pass. Verify Merkle root computation matches block header. Test confirmation depth enforcement. Ensure both valid transactions pass and invalid proofs fail with correct error codes."
+            "testStrategy": "Run `sui move test --filter tx_verification` in zcash_spv directory. All tests should pass. Verify Merkle root computation matches block header. Test confirmation depth enforcement. Ensure both valid transactions pass and invalid proofs fail with correct error codes.",
+            "parentId": "undefined"
           },
           {
             "id": 6,
@@ -625,19 +670,20 @@
             ],
             "details": "Create `nZEC/tests/e2e_tests.move` following the pattern from `nBTC/tests/e2e_tests.move`. Implement:\n\n1. **setup()**: Initialize Zcash light client with testnet blocks, nZEC contract with DWallet capabilities\n2. **TestData struct**: Contains tx_bytes, proof, height, tx_index, expected_recipient, expected_amount\n3. **get_valid_mint_data()**: Return test Zcash transaction with OP_RETURN containing Sui address\n4. **mint_and_assert()**: Execute mint and validate nZEC token output matches expected amount minus fees\n5. **test_mint_valid_transaction()**: Full happy path mint from valid Zcash deposit\n6. **test_mint_fallback_address()**: Test fallback recipient when OP_RETURN is missing\n7. **test_mint_fee_application()**: Verify mint fees are correctly calculated and applied\n8. **test_mint_duplicate_tx()**: Ensure same transaction cannot be minted twice\n9. **test_mint_insufficient_confirmations()**: Transaction without required confirmations fails\n10. **test_redeem_request()**: Test redeem request creation and state management\n\nEnd-to-end flow: Submit Zcash transaction proof -> Verify via light client -> Mint nZEC tokens -> Verify balance. Use test_scenario for Sui context management.",
             "status": "pending",
-            "testStrategy": "Run `sui move test` in nZEC directory. All e2e tests should pass. Verify complete mint flow works with valid Zcash transaction proof. Test fee calculations match configured rates. Ensure duplicate mint prevention works. Measure gas costs for Equihash verification to ensure they're reasonable (<1M gas)."
+            "testStrategy": "Run `sui move test` in nZEC directory. All e2e tests should pass. Verify complete mint flow works with valid Zcash transaction proof. Test fee calculations match configured rates. Ensure duplicate mint prevention works. Measure gas costs for Equihash verification to ensure they're reasonable (<1M gas).",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Copy Shared Utilities from bitcoin_lib to zcash_lib",
         "description": "Copy shared utility modules from bitcoin_lib that are needed by zcash_lib, including reader.move, encoding.move, crypto.move (for SHA256d), and output.move (P2PKH/P2SH same format).",
         "details": "Copy and adapt the following from `bitcoin_lib/sources/` to `zcash_lib/sources/`:\n\n1. `reader.move` - No changes needed (byte reader utility)\n\n2. `encoding.move` - No changes needed (varint encoding)\n\n3. `crypto.move` - Keep SHA256d for block hashing:\n```move\n// Zcash block hash still uses SHA256d (same as Bitcoin)\npublic fun hash256(data: vector<u8>): vector<u8> {\n    sha2_256(sha2_256(data))\n}\n```\n\n4. `output.move` - Same transparent output format:\n   - P2PKH (t1... addresses)\n   - P2SH (t3... addresses)\n\n5. `input.move` - Same transparent input format\n\n6. `vector_utils.move` - No changes needed\n\nUpdate `zcash_lib/Move.toml` to not depend on bitcoin_lib (make self-contained).",
         "testStrategy": "Verify all copied modules compile. Run existing bitcoin_lib tests adapted for zcash_lib to verify functionality is preserved.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -646,7 +692,8 @@
             "dependencies": [],
             "details": "Copy the vector_utils.move file (25 lines) which provides the vector_slice utility function. Update line 3 from 'module bitcoin_lib::vector_utils' to 'module zcash_lib::vector_utils'. This module has no external dependencies within bitcoin_lib so it can be copied first. The module provides slice operations needed by other modules like encoding.move and output.move.",
             "status": "pending",
-            "testStrategy": "Verify the module compiles successfully by running 'sui move build' in zcash_lib directory."
+            "testStrategy": "Verify the module compiles successfully by running 'sui move build' in zcash_lib directory.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -657,7 +704,8 @@
             ],
             "details": "Copy encoding.move (~366 lines) which provides byte encoding utilities (le_bytes_to_u64, u32_to_le_bytes, u64_to_le_bytes, u64_to_varint_bytes, DER signature parsing, etc.). Update line 3 from 'module bitcoin_lib::encoding' to 'module zcash_lib::encoding'. Update line 5 from 'use bitcoin_lib::vector_utils' to 'use zcash_lib::vector_utils'. Keep all existing functions as they are generic utilities.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' and 'sui move test' to verify encoding module compiles and existing tests pass."
+            "testStrategy": "Run 'sui move build' and 'sui move test' to verify encoding module compiles and existing tests pass.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -668,7 +716,8 @@
             ],
             "details": "Copy reader.move (101 lines) providing byte reader utilities for parsing binary data. Update module declaration to 'module zcash_lib::reader' and change import from 'use bitcoin_lib::encoding' to 'use zcash_lib::encoding'. Copy crypto.move (11 lines) containing the SHA256d hash256 function (double SHA256) used for Zcash block hashing. Update module declaration to 'module zcash_lib::crypto'. The hash256 function uses std::hash::sha2_256 which requires no changes.",
             "status": "pending",
-            "testStrategy": "Verify both modules compile with 'sui move build'. Test reader functions work correctly with sample byte data."
+            "testStrategy": "Verify both modules compile with 'sui move build'. Test reader functions work correctly with sample byte data.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -679,7 +728,8 @@
             ],
             "details": "Copy input.move (~70 lines) containing transparent Input struct and encode/decode functions. Update module to 'module zcash_lib::input' and imports to use zcash_lib::encoding and zcash_lib::reader. Copy output.move (~203 lines) containing transparent Output struct with P2PKH/P2SH script parsing (same format as Zcash t1.../t3... addresses). Update module to 'module zcash_lib::output' and all imports (encoding, reader, vector_utils) to use zcash_lib prefix. These modules handle transparent transaction inputs/outputs which are identical between Bitcoin and Zcash.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' to verify compilation. Test P2PKH and P2SH detection functions with known Zcash transparent output scripts."
+            "testStrategy": "Run 'sui move build' to verify compilation. Test P2PKH and P2SH detection functions with known Zcash transparent output scripts.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -690,12 +740,14 @@
             ],
             "details": "Confirm zcash_lib/Move.toml does not list bitcoin_lib as a dependency (it currently only depends on Sui framework which is correct). Run 'sui move build' to compile the entire zcash_lib package including the newly copied modules (vector_utils, encoding, reader, crypto, input, output) alongside existing modules (blake2b, equihash). Run 'sui move test' to execute any tests. Verify there are no unresolved imports or module reference errors. The package should be fully self-contained with no bitcoin_lib dependency.",
             "status": "pending",
-            "testStrategy": "Run 'sui move build' and 'sui move test' from zcash_lib directory. Verify build succeeds with no errors. Check that all 8 modules (6 copied + 2 existing) are compiled."
+            "testStrategy": "Run 'sui move build' and 'sui move test' from zcash_lib directory. Verify build succeeds with no errors. Check that all 8 modules (6 copied + 2 existing) are compiled.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2025-12-04T14:33:23.792Z"
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "Fix Equihash Hash Generation for Correct Zcash Algorithm",
         "description": "Update the equihash.move hash generation to match Zcash's actual implementation - hashes per BLAKE2b output and proper index-to-hash mapping.",
         "details": "Update `zcash_lib/sources/equihash.move` to fix hash generation:\n\nZcash Equihash hash generation formula:\n- For n=144, k=5: output_length = (n/(k+1)+1) * (1 << k) / 8 = 600 bytes total\n- Each BLAKE2b-256 call produces 32 bytes\n- hashes_per_blake = floor(32 * 8 / (n+1)) = floor(256/145) = 1\n- hash_length = ceil((n+1)/8) = 19 bytes (not 18)\n\nCorrect implementation:\n```move\nconst HASH_LENGTH: u64 = 19;  // ceil(145/8) = 19 bytes\nconst INDICES_PER_HASH: u64 = 1; // floor(256/145) = 1\n\nfun generate_single_hash(input: &vector<u8>, index: u32, personal: &vector<u8>): vector<u8> {\n    // Compute which BLAKE2b block this index falls in\n    let block_index = index / INDICES_PER_HASH;\n    let offset = (index % INDICES_PER_HASH) * HASH_LENGTH;\n    \n    let mut hash_input = *input;\n    append_le32(&mut hash_input, block_index);\n    \n    let full_hash = blake2b::hash_with_personal(&hash_input, *personal);\n    \n    // Extract HASH_LENGTH bytes starting at offset\n    extract_bytes(&full_hash, offset, HASH_LENGTH)\n}\n```\n\nReference: https://github.com/zcash/zcash/blob/master/src/crypto/equihash.cpp",
@@ -711,7 +763,8 @@
             "dependencies": [],
             "details": "Study the reference implementations to extract exact formulas:\n\n**Key Formulas for n=144, k=5:**\n- `BSTRS_PER_HASH = 512 / N = 512 / 144 = 3` (integer division)\n- `collisionBitLength = N / (K+1) = 144 / 6 = 24 bits`\n- `collisionByteLength = ceil(24/8) = 3 bytes`\n- `hashLength = (K+1) * collisionByteLength = 6 * 3 = 18 bytes` (current code is correct)\n- `hashOutput = BSTRS_PER_HASH * N / 8 = 3 * 144 / 8 = 54 bytes` per BLAKE2b call\n\n**BLAKE2b Block Index Computation:**\n- `block_index = solution_index / BSTRS_PER_HASH = solution_index / 3`\n- `hash_offset = (solution_index % BSTRS_PER_HASH) * (N / 8) = (solution_index % 3) * 18`\n\nThe current code uses HASH_LENGTH=18 which appears correct, but the hash generation logic at equihash.move:244-280 uses the wrong block index calculation (uses `index` directly instead of `index / 3`) and doesn't compute the correct byte offset.\n\nReferences:\n- parity-zcash: https://github.com/paritytech/parity-zcash/blob/master/verification/src/equihash.rs\n- equihash-zcash-c: https://github.com/aabc/equihash-zcash-c/blob/master/basicSolver.c",
             "status": "pending",
-            "testStrategy": "Document the formulas and verify calculations against test vectors from Zcash testnet blocks."
+            "testStrategy": "Document the formulas and verify calculations against test vectors from Zcash testnet blocks.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -722,7 +775,8 @@
             ],
             "details": "Update constants in `zcash_lib/sources/equihash.move` around lines 35-43:\n\n```move\n/// Collision width per round: n/(k+1) = 24 bits = 3 bytes\nconst COLLISION_BYTES: u64 = 3;\n\n/// Hash output length: (k+1) * collision_bytes = 18 bytes\nconst HASH_LENGTH: u64 = 18;  // This is already correct!\n\n/// Number of N-bit strings per BLAKE2b-256 output: 512/N = 3\nconst INDICES_PER_HASH: u64 = 3;\n\n/// BLAKE2b output size for hash generation: INDICES_PER_HASH * N / 8 = 54 bytes\nconst HASH_OUTPUT_SIZE: u64 = 54;\n```\n\nNote: The task description mentioned HASH_LENGTH should be 19 bytes using `ceil((n+1)/8)`, but according to the reference implementations, the correct formula is `(K+1) * collisionByteLength = 6 * 3 = 18 bytes`. The current HASH_LENGTH=18 appears correct based on the parity-zcash implementation. Need to verify this during testing.",
             "status": "pending",
-            "testStrategy": "Verify constant values match the parity-zcash and zcash reference implementations exactly."
+            "testStrategy": "Verify constant values match the parity-zcash and zcash reference implementations exactly.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -733,7 +787,8 @@
             ],
             "details": "Replace the `generate_single_hash` function at equihash.move:244-280 with:\n\n```move\n/// Generate hash for a single index.\n/// For n=144, k=5: BLAKE2b produces 54 bytes, containing 3 hashes of 18 bytes each.\nfun generate_single_hash(input: &vector<u8>, index: u32, personal: &vector<u8>): vector<u8> {\n    // Compute which BLAKE2b block this index falls in\n    let block_index = (index as u64) / INDICES_PER_HASH;\n    // Compute byte offset within the 54-byte output\n    let offset = ((index as u64) % INDICES_PER_HASH) * HASH_LENGTH;\n    \n    let mut hash_input = *input;\n    // Append block_index as little-endian u32\n    append_le32(&mut hash_input, (block_index as u32));\n    \n    // BLAKE2b-432 (54 bytes = 432 bits) with Equihash personalization\n    let full_hash = blake2b::hash_with_personal_and_length(&hash_input, *personal, HASH_OUTPUT_SIZE);\n    \n    // Extract HASH_LENGTH bytes starting at offset\n    extract_bytes(&full_hash, offset, HASH_LENGTH)\n}\n\nfun append_le32(vec: &mut vector<u8>, val: u32) {\n    vector::push_back(vec, (val & 0xff) as u8);\n    vector::push_back(vec, ((val >> 8) & 0xff) as u8);\n    vector::push_back(vec, ((val >> 16) & 0xff) as u8);\n    vector::push_back(vec, ((val >> 24) & 0xff) as u8);\n}\n\nfun extract_bytes(src: &vector<u8>, offset: u64, len: u64): vector<u8> {\n    let mut result = vector[];\n    let mut i = 0;\n    while (i < len) {\n        vector::push_back(&mut result, *vector::borrow(src, offset + i));\n        i = i + 1;\n    };\n    result\n}\n```\n\nNote: The blake2b module needs to support variable output length (54 bytes instead of 32). Check if `blake2b::hash_with_personal` already supports this or if a new function `hash_with_personal_and_length` is needed.",
             "status": "pending",
-            "testStrategy": "Unit test that verifies: (1) block_index = index / 3, (2) offset = (index % 3) * 18, (3) extracted bytes are correct from the 54-byte output."
+            "testStrategy": "Unit test that verifies: (1) block_index = index / 3, (2) offset = (index % 3) * 18, (3) extracted bytes are correct from the 54-byte output.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -744,7 +799,8 @@
             ],
             "details": "Add debug functions to `equihash.move` for testing:\n\n```move\n/// Debug: Get hash for a specific index (public for testing)\n#[test_only]\npublic fun debug_generate_hash(input: &vector<u8>, index: u32): vector<u8> {\n    let personal = blake2b::equihash_personal(144, 5);\n    generate_single_hash(input, index, &personal)\n}\n\n/// Debug: Get the block index for a solution index\n#[test_only]\npublic fun debug_block_index(index: u32): u64 {\n    (index as u64) / INDICES_PER_HASH\n}\n\n/// Debug: Get the byte offset within BLAKE2b output\n#[test_only]\npublic fun debug_hash_offset(index: u32): u64 {\n    ((index as u64) % INDICES_PER_HASH) * HASH_LENGTH\n}\n\n/// Debug: Expand solution and return indices\n#[test_only]\npublic fun debug_expand_indices(solution: &vector<u8>): vector<u32> {\n    expand_indices(solution)\n}\n\n/// Debug: Generate all hashes for a solution\n#[test_only]\npublic fun debug_generate_all_hashes(input: &vector<u8>, indices: &vector<u32>): vector<vector<u8>> {\n    let personal = blake2b::equihash_personal(144, 5);\n    generate_hashes(input, indices)\n}\n```\n\nThese functions allow comparing intermediate values against a known-good implementation during development.",
             "status": "pending",
-            "testStrategy": "Create unit tests that call debug functions and print/log values for manual comparison with a reference Python/Rust implementation."
+            "testStrategy": "Create unit tests that call debug functions and print/log values for manual comparison with a reference Python/Rust implementation.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -756,15 +812,20 @@
             ],
             "details": "Create comprehensive tests using real Zcash testnet block data:\n\n```move\n#[test]\nfun test_real_testnet_block_equihash() {\n    // Zcash testnet block with known-valid Equihash solution\n    // Header (140 bytes), Nonce (32 bytes), Solution (84 bytes)\n    let header = x\"...\";  // Real testnet header\n    let nonce = x\"...\";   // Real testnet nonce\n    let solution = x\"...\"; // Real testnet solution (84 bytes)\n    \n    // This should pass with correct implementation\n    assert!(verify(&header, &nonce, &solution), 0);\n}\n\n#[test]\nfun test_invalid_solution_fails() {\n    // Same header/nonce but corrupted solution\n    let header = x\"...\";\n    let nonce = x\"...\";\n    let mut solution = x\"...\";\n    // Corrupt one byte\n    *vector::borrow_mut(&mut solution, 0) = 0xff;\n    \n    // This should fail XOR tree verification\n    // Use expected_failure or catch abort\n}\n```\n\nSteps:\n1. Fetch 2-3 real Zcash testnet blocks using RPC or block explorer\n2. Extract header, nonce, and solution bytes\n3. Add them as test constants\n4. Verify both positive (valid solution) and negative (corrupted solution) cases\n5. If tests fail, use debug functions to compare hash outputs with reference implementation",
             "status": "pending",
-            "testStrategy": "Obtain real Zcash testnet block data, create Move test constants, verify verify() returns true for valid solutions and aborts for invalid ones."
+            "testStrategy": "Obtain real Zcash testnet block data, create Move test constants, verify verify() returns true for valid solutions and aborts for invalid ones.",
+            "parentId": "undefined"
           }
         ]
       }
     ],
     "metadata": {
-      "created": "2025-12-04T07:58:43.156Z",
-      "updated": "2025-12-04T07:58:43.156Z",
-      "description": "Tasks for master context"
+      "version": "1.0.0",
+      "lastModified": "2025-12-04T14:33:23.792Z",
+      "taskCount": 12,
+      "completedCount": 2,
+      "tags": [
+        "feat/blake2b-256-implementation"
+      ]
     }
   }
 }

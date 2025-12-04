@@ -2,8 +2,8 @@
 
 module zcash_lib::header;
 
-use bitcoin_lib::crypto::hash256;
-use bitcoin_lib::reader;
+use zcash_lib::crypto::hash256;
+use zcash_lib::reader;
 
 // === Constants ===
 const BLOCK_HEADER_SIZE: u64 = 140;
