@@ -70,7 +70,7 @@
         "dependencies": [
           "1"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -106,7 +106,8 @@
             "testStrategy": "Unit tests verifying: testnet() returns equihash_n=144, equihash_k=5; mainnet() returns equihash_n=200, equihash_k=9; both have target_spacing=75, averaging_window=17. Verify power_limit values match Zcash specification.",
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2025-12-04T15:19:16.657Z"
       },
       {
         "id": "3",
@@ -821,9 +822,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-12-04T15:15:48.092Z",
+      "lastModified": "2025-12-04T15:19:16.657Z",
       "taskCount": 12,
-      "completedCount": 3,
+      "completedCount": 4,
       "tags": [
         "feat/blake2b-256-implementation"
       ]
