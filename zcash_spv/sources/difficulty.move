@@ -145,9 +145,12 @@ public fun calc_next_difficulty(
     // we handle increase and decrease separately to avoid overflow
     let new_target = if (clamped_timespan >= target_timespan) {
         // Difficulty decreasing (target increasing)
+        // Clamped at 125% max, so ratio is at most 1 (with remainder)
+        // This avoids overflow while preserving precision
         let ratio = clamped_timespan / target_timespan;
         let remainder = clamped_timespan % target_timespan;
-        avg_target * ratio + (avg_target / target_timespan) * remainder
+        // Multiply before divide in remainder to preserve precision
+        avg_target * ratio + (avg_target * remainder) / target_timespan
     } else {
         // Difficulty increasing (target decreasing)
         // This path is safe from overflow as we're multiplying by a value < 1
@@ -291,10 +294,18 @@ public fun target_to_bits(target: u256): u32 {
 /// # Algorithm
 /// Compact bits format: exponent (1 byte) + mantissa (3 bytes)
 /// target = mantissa × 256^(exponent - 3)
+///
+/// # Note
+/// This is a pure conversion function. Callers should validate the resulting
+/// target against power_limit if needed (e.g., when validating block headers).
 public fun bits_to_target(bits: u32): u256 {
     // Extract size (exponent) and mantissa
     let size = (bits >> 24) & 0xff;
     let mantissa = bits & 0x00ffffff;
+
+    // Validate sign bit is not set (negative targets are invalid)
+    // If the high bit of mantissa is set, this represents a negative value
+    assert!(mantissa & 0x00800000 == 0, E_INVALID_WINDOW_SIZE); // Reusing error code
 
     // Calculate target = mantissa * 256^(size - 3)
     let mut target = mantissa as u256;
