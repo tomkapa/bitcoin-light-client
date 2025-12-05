@@ -87,21 +87,8 @@ const E_INVALID_WINDOW_SIZE: u64 = 2;
 /// Error code: Invalid timestamp count (must be exactly 11 for median calculation)
 const E_INVALID_TIMESTAMP_COUNT: u64 = 3;
 
-/// Verify that the module documentation is complete
-/// This is used in tests to ensure all required documentation exists
-public fun verify_documentation_complete() {
-    // Documentation checklist (verified by tests):
-    // ✓ Formula: new_target = avg_target * clamped_timespan / target_timespan
-    // ✓ averaging_window = 17 blocks
-    // ✓ target_spacing = 75 seconds (post-Blossom) / 150 seconds (pre-Blossom)
-    // ✓ Damping: damped_timespan = target_timespan + (actual_timespan - target_timespan) / 4
-    // ✓ Clamping bounds: min = 75%, max = 125%
-    // ✓ Median calculation: MTP(block[N]) - MTP(block[N-27])
-    // ✓ References to Zcash source code and ZIPs
-
-    // Placeholder - will be removed once implementation is complete
-    abort E_NOT_IMPLEMENTED
-}
+/// Error code: Invalid timestamp ordering (median_time_past must be >= median_time_first)
+const E_INVALID_TIMESTAMP: u64 = 4;
 
 /// Calculate the next difficulty using DigiShield v3 algorithm
 ///
@@ -120,6 +107,9 @@ public fun calc_next_difficulty(
     median_time_first: u64,
 ): u32 {
     use zcash_spv::params;
+
+    // Validate timestamps are in correct order
+    assert!(median_time_past >= median_time_first, E_INVALID_TIMESTAMP);
 
     // Step 1: Calculate actual timespan
     let actual_timespan = (median_time_past - median_time_first) as u256;
@@ -181,6 +171,8 @@ public fun calculate_average_target(targets: &vector<u256>): u256 {
     assert!(vector::length(targets) == 17, E_INVALID_WINDOW_SIZE);
 
     // Calculate sum of all targets
+    // Safe from overflow: max sum = 17 * power_limit < 2^256
+    // Even at maximum difficulty (power_limit), 17 targets sum to less than u256::MAX
     let mut sum: u256 = 0;
     let mut i = 0;
     while (i < 17) {
@@ -213,10 +205,10 @@ public fun calc_median_timestamp(timestamps: &vector<u64>): u64 {
         i = i + 1;
     };
 
-    // Simple bubble sort
-    let mut n = 11;
+    // Simple bubble sort with explicit types for safety
+    let mut n: u64 = 11;
     while (n > 1) {
-        let mut i = 0;
+        let mut i: u64 = 0;
         while (i < n - 1) {
             let a = *vector::borrow(&sorted, i);
             let b = *vector::borrow(&sorted, i + 1);
