@@ -87,6 +87,9 @@ const E_INVALID_TIMESTAMP_COUNT: u64 = 3;
 /// Error code: Invalid timestamp ordering (median_time_past must be >= median_time_first)
 const E_INVALID_TIMESTAMP: u64 = 4;
 
+/// Error code: avg_target exceeds power_limit
+const E_TARGET_EXCEEDS_LIMIT: u64 = 5;
+
 /// Calculate the next difficulty using DigiShield v3 algorithm
 ///
 /// # Arguments
@@ -104,6 +107,10 @@ public fun calc_next_difficulty(
     median_time_first: u64,
 ): u32 {
     use zcash_spv::params;
+
+    // Validate avg_target doesn't exceed power_limit (defense against malformed input)
+    let power_limit = params::power_limit(params);
+    assert!(avg_target <= power_limit, E_TARGET_EXCEEDS_LIMIT);
 
     // Validate timestamps are in correct order
     assert!(median_time_past >= median_time_first, E_INVALID_TIMESTAMP);
@@ -145,12 +152,16 @@ public fun calc_next_difficulty(
     // we handle increase and decrease separately to avoid overflow
     let new_target = if (clamped_timespan >= target_timespan) {
         // Difficulty decreasing (target increasing)
-        // Clamped at 125% max, so ratio is at most 1 (with remainder)
-        // This avoids overflow while preserving precision
+        // Clamped at 125% max, so ratio is at most 1 (with remainder up to ~318)
         let ratio = clamped_timespan / target_timespan;
         let remainder = clamped_timespan % target_timespan;
-        // Multiply before divide in remainder to preserve precision
-        avg_target * ratio + (avg_target * remainder) / target_timespan
+        // Avoid overflow by dividing first, then multiplying:
+        // avg_target * remainder could overflow (2^251 * 318 ≈ 2^259 > 2^256)
+        // Instead: (avg_target / target_timespan) * remainder is safe (2^241 * 318 ≈ 2^249)
+        // Plus: ((avg_target % target_timespan) * remainder) / target_timespan handles precision loss
+        let quotient = avg_target / target_timespan;
+        let modulo = avg_target % target_timespan;
+        avg_target * ratio + quotient * remainder + (modulo * remainder) / target_timespan
     } else {
         // Difficulty increasing (target decreasing)
         // This path is safe from overflow as we're multiplying by a value < 1
@@ -158,7 +169,6 @@ public fun calc_next_difficulty(
     };
 
     // Step 6: Ensure new_target doesn't exceed power_limit
-    let power_limit = params::power_limit(params);
     let final_target = if (new_target > power_limit) {
         power_limit
     } else {

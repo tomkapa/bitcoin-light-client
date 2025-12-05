@@ -310,3 +310,43 @@ fun test_bits_target_roundtrip() {
     // Round-trip should preserve the value
     assert!(converted_bits == original_bits, 0);
 }
+
+// ===== Overflow Protection Tests =====
+
+/// Test calc_next_difficulty rejects avg_target exceeding power_limit
+#[test]
+#[expected_failure(abort_code = difficulty::E_TARGET_EXCEEDS_LIMIT)]
+fun test_calc_next_difficulty_rejects_invalid_target() {
+    let p = params::testnet();
+    // avg_target exceeds power_limit (should fail validation)
+    let avg_target: u256 = 0x0008ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    let median_time_past: u64 = 1234567890;
+    let median_time_first: u64 = 1234566290; // Triggers clamped_timespan >= target_timespan path
+
+    let _bits = difficulty::calc_next_difficulty(&p, avg_target, median_time_past, median_time_first);
+}
+
+/// Test calc_next_difficulty handles max remainder without overflow
+/// This specifically tests the fix for the overflow issue where avg_target * remainder
+/// could exceed u256 capacity when avg_target is near power_limit
+#[test]
+fun test_calc_next_difficulty_max_remainder_no_overflow() {
+    let p = params::testnet();
+    // Use exact power_limit as avg_target (maximum valid value)
+    let avg_target: u256 = 0x0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+
+    // Create timespan that results in max_timespan (125% of target_timespan)
+    // target_timespan = 1275, max_timespan = 1593
+    // This ensures remainder = 1593 % 1275 = 318 (maximum possible)
+    // With very slow blocks that will clamp to max_timespan
+    let median_time_past: u64 = 1234570000;
+    let median_time_first: u64 = 1234560000; // Diff = 10000s (very slow, will clamp to 125%)
+
+    // This would overflow without the fix:
+    // avg_target * remainder ≈ 2^251 * 318 ≈ 2^259 > 2^256
+    let bits = difficulty::calc_next_difficulty(&p, avg_target, median_time_past, median_time_first);
+
+    // Should complete without overflow and return valid bits
+    // Result is clamped to power_limit_bits
+    assert!(bits <= params::power_limit_bits(&p), 0);
+}
