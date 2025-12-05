@@ -186,8 +186,8 @@ fun test_calc_next_difficulty_power_limit() {
 
     let bits = difficulty::calc_next_difficulty(&p, avg_target, median_time_past, median_time_first);
 
-    // Result should never exceed power_limit_bits
-    assert!(bits <= 0x2007ffff, 0);
+    // Result should never exceed power_limit_bits (use params value for future-proofing)
+    assert!(bits <= params::power_limit_bits(&p), 0);
 }
 
 // ===== Subtask 3.3: calculate_average_target Tests =====

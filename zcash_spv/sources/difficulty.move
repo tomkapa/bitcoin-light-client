@@ -78,9 +78,6 @@
 /// - Zcash Protocol Specification: https://zips.z.cash/protocol/protocol.pdf
 module zcash_spv::difficulty;
 
-/// Error code: Feature not implemented yet
-const E_NOT_IMPLEMENTED: u64 = 1;
-
 /// Error code: Invalid window size (must be exactly 17 for averaging window)
 const E_INVALID_WINDOW_SIZE: u64 = 2;
 
@@ -142,8 +139,20 @@ public fun calc_next_difficulty(
     };
 
     // Step 5: Calculate new target
-    // new_target = avg_target * clamped_timespan / target_timespan
-    let new_target = (avg_target * clamped_timespan) / target_timespan;
+    // Reorder operations to prevent integer overflow:
+    // Instead of (avg_target * clamped_timespan) / target_timespan which could overflow
+    // when avg_target is near power_limit and clamped_timespan is at max (125%),
+    // we handle increase and decrease separately to avoid overflow
+    let new_target = if (clamped_timespan >= target_timespan) {
+        // Difficulty decreasing (target increasing)
+        let ratio = clamped_timespan / target_timespan;
+        let remainder = clamped_timespan % target_timespan;
+        avg_target * ratio + (avg_target / target_timespan) * remainder
+    } else {
+        // Difficulty increasing (target decreasing)
+        // This path is safe from overflow as we're multiplying by a value < 1
+        (avg_target * clamped_timespan) / target_timespan
+    };
 
     // Step 6: Ensure new_target doesn't exceed power_limit
     let power_limit = params::power_limit(params);
@@ -206,6 +215,8 @@ public fun calc_median_timestamp(timestamps: &vector<u64>): u64 {
     };
 
     // Simple bubble sort with explicit types for safety
+    // O(n²) complexity is acceptable for n=11; more complex algorithms
+    // would add unnecessary code complexity and gas costs for minimal gain
     let mut n: u64 = 11;
     while (n > 1) {
         let mut i: u64 = 0;
