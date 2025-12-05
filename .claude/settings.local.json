@@ -23,7 +23,10 @@
       "mcp__task-master-ai__autopilot_abort",
       "Bash(sui:*)",
       "Bash(gh pr list:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(gh pr view:*)",
+      "Bash(git push:*)",
+      "Bash(jq:*)"
     ],
     "deny": [],
     "ask": []

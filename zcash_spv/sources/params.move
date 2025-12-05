@@ -11,7 +11,7 @@
 module zcash_spv::params;
 
 /// Zcash network parameters
-public struct Params has store {
+public struct Params has store, drop {
     power_limit: u256,
     power_limit_bits: u32,
     target_spacing: u64,      // Block time in seconds (75 for Zcash)
